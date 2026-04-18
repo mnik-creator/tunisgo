@@ -1,4 +1,4 @@
-# TunisGO — Transit Navigation App For Tunisia's Transport
+# TunisGO — Public Transit Navigation for Tunisia
 
 TunisGO is a mobile transit navigation app for Tunisia's transportation network (now SNCFT), built with Flutter. It provides offline-first access to train schedules, real-time journey planning, and notifications for the Tunisian railway network.
 
