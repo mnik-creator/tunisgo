@@ -1,6 +1,6 @@
-# TunisGO — Unofficial SNCFT Train Schedule App
+# TunisGO — Transit Navigation App For Tunisia's Transport
 
-TunisGO is an unofficial mobile transit navigation app for Tunisia's transportation network (now SNCFT), built with Flutter. It provides offline-first access to train schedules, real-time journey planning, and notifications for the Tunisian railway network.
+TunisGO is a mobile transit navigation app for Tunisia's transportation network (now SNCFT), built with Flutter. It provides offline-first access to train schedules, real-time journey planning, and notifications for the Tunisian railway network.
 
 ## Features
 
