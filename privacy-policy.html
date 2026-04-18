@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — TunisGO</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #F7F5F0;
+    --surface: #FFFFFF;
+    --accent: #1D6A54;
+    --accent-light: #E1F5EE;
+    --text-primary: #1A1A1A;
+    --text-secondary: #555550;
+    --text-muted: #888880;
+    --border: rgba(0,0,0,0.08);
+    --red: #E24B4A;
+    --green: #3B6D11;
+    --amber: #BA7517;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    background: var(--bg);
+    color: var(--text-primary);
+    line-height: 1.75;
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--accent);
+    padding: 3rem 2rem 2.5rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 40px,
+      rgba(255,255,255,0.03) 40px,
+      rgba(255,255,255,0.03) 80px
+    );
+  }
+
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1.5rem;
+    position: relative;
+  }
+
+  .logo-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+
+  .logo-text {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: white;
+    letter-spacing: -0.3px;
+  }
+
+  header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(28px, 5vw, 42px);
+    color: white;
+    font-weight: 400;
+    letter-spacing: -0.5px;
+    position: relative;
+    margin-bottom: 0.5rem;
+  }
+
+  header p {
+    color: rgba(255,255,255,0.65);
+    font-size: 13px;
+    position: relative;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .container {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 5rem;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 3rem;
+  }
+
+  .summary-card {
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 1.1rem 1rem;
+    border: 0.5px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .summary-card .icon {
+    font-size: 20px;
+    margin-bottom: 2px;
+  }
+
+  .summary-card .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+  }
+
+  .summary-card .value {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1.4;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 20px;
+    width: fit-content;
+    margin-top: 2px;
+  }
+
+  .badge.green { background: #EAF3DE; color: #3B6D11; }
+  .badge.red { background: #FCEBEB; color: #A32D2D; }
+  .badge.amber { background: #FAEEDA; color: #854F0B; }
+
+  section {
+    margin-bottom: 2.5rem;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  .section-number {
+    width: 26px;
+    height: 26px;
+    background: var(--accent-light);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    font-weight: 400;
+    letter-spacing: -0.2px;
+    color: var(--text-primary);
+  }
+
+  p {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+  }
+
+  p:last-child { margin-bottom: 0; }
+
+  .data-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 0.5px solid var(--border);
+    font-size: 14px;
+    gap: 12px;
+  }
+
+  .data-row:last-child { border-bottom: none; }
+
+  .data-label {
+    color: var(--text-secondary);
+    flex: 1;
+  }
+
+  .status-yes { color: var(--green); font-weight: 500; }
+  .status-no { color: var(--red); font-weight: 500; }
+  .status-partial { color: var(--amber); font-weight: 500; }
+
+  .card-surface {
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem;
+    border: 0.5px solid var(--border);
+    margin-top: 0.75rem;
+  }
+
+  .third-party {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 1rem 0;
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  .third-party:last-child { border-bottom: none; }
+
+  .third-party-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    background: var(--bg);
+    border: 0.5px solid var(--border);
+  }
+
+  .third-party-info h4 {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 2px;
+    color: var(--text-primary);
+  }
+
+  .third-party-info p {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  .third-party-info a {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 12px;
+  }
+
+  .highlight-box {
+    background: var(--accent-light);
+    border-radius: 12px;
+    padding: 1.1rem 1.25rem;
+    border-left: 3px solid var(--accent);
+    margin-top: 0.75rem;
+  }
+
+  .highlight-box p {
+    color: #0F6E56;
+    font-size: 14px;
+    margin: 0;
+  }
+
+  .contact-card {
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 1.5rem;
+    border: 0.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .contact-avatar {
+    width: 48px;
+    height: 48px;
+    background: var(--accent-light);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+
+  .contact-info p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .contact-info a {
+    color: var(--accent);
+    font-weight: 500;
+    text-decoration: none;
+    font-size: 15px;
+  }
+
+  footer {
+    text-align: center;
+    padding: 2rem;
+    font-size: 12px;
+    color: var(--text-muted);
+    border-top: 0.5px solid var(--border);
+  }
+
+  @media (max-width: 500px) {
+    .summary-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🚆</div>
+    <span class="logo-text">TunisGO</span>
+  </div>
+  <h1>Privacy Policy</h1>
+  <p>Effective date: April 1, 2026 &nbsp;·&nbsp; Last updated: April 18, 2026</p>
+</header>
+
+<div class="container">
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="icon">🔒</div>
+      <div class="label">Tracking</div>
+      <div class="value">No analytics or tracking</div>
+      <span class="badge green">✓ None collected</span>
+    </div>
+    <div class="summary-card">
+      <div class="icon">📱</div>
+      <div class="label">Data storage</div>
+      <div class="value">Locally on your device</div>
+      <span class="badge green">✓ On-device only</span>
+    </div>
+    <div class="summary-card">
+      <div class="icon">👤</div>
+      <div class="label">Account</div>
+      <div class="value">Optional, email &amp; name only</div>
+      <span class="badge amber">◎ Optional</span>
+    </div>
+    <div class="summary-card">
+      <div class="icon">📢</div>
+      <div class="label">Ads</div>
+      <div class="value">Google AdMob (free tier)</div>
+      <span class="badge amber">◎ Third-party</span>
+    </div>
+  </div>
+
+  <section>
+    <div class="section-header">
+      <div class="section-number">1</div>
+      <h2>Introduction</h2>
+    </div>
+    <p>TunisGO app is a transit navigation app for Tunisia's transportation network, developed independently. This policy explains what data we collect, how we use it, and your rights as a user.</p>
+    <p>We have designed TunisGO with a <strong>privacy-first philosophy</strong>: the app works fully offline, stores all transit data locally, and does not track your behavior or location.</p>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div class="section-number">2</div>
+      <h2>Data we collect</h2>
+    </div>
+    <div class="card-surface">
+      <div class="data-row">
+        <span class="data-label">Location data</span>
+        <span class="status-no">✗ Not collected</span>
+      </div>
+      <div class="data-row">
+        <span class="data-label">Analytics / usage tracking</span>
+        <span class="status-no">✗ Not collected</span>
+      </div>
+      <div class="data-row">
+        <span class="data-label">Device identifiers</span>
+        <span class="status-no">✗ Not collected by us</span>
+      </div>
+      <div class="data-row">
+        <span class="data-label">Account email &amp; name</span>
+        <span class="status-partial">Optional — only if you register</span>
+      </div>
+      <div class="data-row">
+        <span class="data-label">Subscription status</span>
+        <span class="status-partial">Managed by RevenueCat</span>
+      </div>
+      <div class="data-row">
+        <span class="data-label">Favorite routes / preferences</span>
+        <span class="status-yes">✓ Stored locally only</span>
+      </div>
+    </div>
+    <div class="highlight-box">
+      <p>All transit schedules, routes, and your saved preferences are stored exclusively on your device. We never send this data to our servers.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div class="section-number">3</div>
+      <h2>Optional account</h2>
+    </div>
+    <p>TunisGO can be used completely without an account. If you choose to register, we collect only your email address and display name to:</p>
+    <p>— Sync your preferences across devices<br>— Manage your subscription (Pro tier)<br>— Send you important service updates</p>
+    <p>This data is stored securely on our backend (InsForge) and is never sold or shared with third parties, except as described in section 4.</p>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div class="section-number">4</div>
+      <h2>Third-party services</h2>
+    </div>
+    <div class="card-surface">
+      <div class="third-party">
+        <div class="third-party-icon">📊</div>
+        <div class="third-party-info">
+          <h4>Google AdMob</h4>
+          <p>Displays ads on the free tier. AdMob may collect device identifiers and ad interaction data. You can opt out via your device's ad settings.<br><a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy →</a></p>
+        </div>
+      </div>
+      <div class="third-party">
+        <div class="third-party-icon">💳</div>
+        <div class="third-party-info">
+          <h4>RevenueCat</h4>
+          <p>Manages in-app purchases and subscription status. RevenueCat receives purchase transaction data from the app store — we do not process payment data directly.<br><a href="https://www.revenuecat.com/privacy" target="_blank">RevenueCat Privacy Policy →</a></p>
+        </div>
+      </div>
+      <div class="third-party">
+        <div class="third-party-icon">🗄️</div>
+        <div class="third-party-info">
+          <h4>InsForge (Backend)</h4>
+          <p>Stores optional account data (email, name) and hosts transit database updates (OTA). Data is encrypted at rest and in transit.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div class="section-number">5</div>
+      <h2>Children's privacy</h2>
+    </div>
+    <p>TunisGO is not directed at children under 13. We do not knowingly collect personal data from children. If you believe your child has provided personal data, please contact us and we will delete it promptly.</p>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div class="section-number">6</div>
+      <h2>Your rights</h2>
+    </div>
+    <p>You have the right to access, correct, or delete your account data at any time. You can:</p>
+    <p>— Delete your account directly from the app Settings → Account<br>— Request a full data export by emailing us<br>— Opt out of personalized ads via device settings</p>
+    <p>Account deletion removes all your data from our servers within 30 days.</p>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div class="section-number">7</div>
+      <h2>Updates to this policy</h2>
+    </div>
+    <p>We may update this policy as the app evolves. Significant changes will be communicated via an in-app notification. The effective date at the top of this page always reflects the latest version.</p>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div class="section-number">8</div>
+      <h2>Contact</h2>
+    </div>
+    <div class="contact-card">
+      <div class="contact-avatar">✉️</div>
+      <div class="contact-info">
+        <a href="mailto:mnik.dev@proton.me">privacy@tunisgo.app</a>
+        <p>Questions about privacy? We'll respond within 5 business days.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  &copy; 2026 TunisGO. All rights reserved. &nbsp;·&nbsp; Tunisia Transportation App
+</footer>
+
+</body>
+</html>
