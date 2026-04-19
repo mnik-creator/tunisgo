@@ -114,7 +114,7 @@ This project is licensed under the **Business Source License 1.1 (BSL 1.1)** wit
 
 | Parameter | Value |
 |-----------|-------|
-| **Licensor** | Mykhailo Nikolaiev |
+| **Licensor** | TunisGO |
 | **Licensed Work** | TunisGO -  a transit navigation app for Tunisia's transportation network |
 | **Additional Use Grant** | Personal use, educational use, and non-commercial research purposes |
 | **Change Date** | 2031-01-01 |
