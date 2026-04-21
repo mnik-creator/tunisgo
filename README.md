@@ -1,6 +1,6 @@
 # TunisGO — Public Transit Navigation for Tunisia
 
-TunisGO is a mobile transit navigation app for Tunisia's transportation network (now SNCFT), built with Flutter. It provides offline-first access to train schedules, real-time journey planning, and notifications for the Tunisian railway network.
+TunisGO is an unofficial mobile transit navigation app for Tunisia's transportation network (now SNCFT), built with Flutter. It provides offline-first access to train schedules, real-time journey planning, and notifications for the Tunisian railway network.
 
 ## Features
 
@@ -9,7 +9,6 @@ TunisGO is a mobile transit navigation app for Tunisia's transportation network 
 - **Line browser** — Explore every line with departure times, days of operation, and fare information
 - **Favorites** — Save frequent trips for quick access (requires account)
 - **Schedule updates** — Download the latest timetable over-the-air without a full app update
-- **Pro subscription** — Ad-free experience and premium features via RevenueCat
 - **Multi-language** — French, Arabic, English, Russian
 - **Dark mode** — Follows system appearance or manually toggled
 
@@ -47,8 +46,7 @@ Before building for release, set the following:
 
 | Key | Location | Description |
 |-----|----------|-------------|
-| RevenueCat iOS key | `lib/services/subscription_service.dart` (`_RC.apiKey`) | `appl_xxx` key from RC dashboard |
-| RevenueCat Android key | `lib/services/subscription_service.dart` (`_RC.apiKey`) | `goog_xxx` key from RC dashboard |
+
 | Android signing config | `android/app/build.gradle.kts` | Release keystore for Play Store |
 
 ### Running Tests
@@ -65,9 +63,9 @@ lib/
   features/       # Screen-level feature modules
     home/         # Home / search screen
     lines/        # Line detail and schedule browser
-    account/      # User account, settings, subscriptions
+    account/      # User account, settings
     favorites/    # Saved trips
-  services/       # RevenueCat, DB update, auth services
+  services/       # DB update, auth services
   l10n/           # Localisation ARB files
 assets/
   db/             # Bundled SNCFT SQLite database
@@ -95,46 +93,27 @@ Train schedule data is sourced from SNCFT public timetables and compiled into a 
 - ✅ App preferences (theme, language settings)
 - ✅ Authentication tokens (stored securely in device keychain/keystore)
 
-### Account Features (Optional):
-If you choose to create an account:
-- Email and name are stored with InsForge (authentication provider)
-- Favorites can be synced across devices
-- Subscription status is managed via RevenueCat
+
 
 ### Third-Party Services:
-- **InsForge**: Authentication (email/password, OAuth)
-- **RevenueCat**: Subscription management
-- **Google AdMob**: Displays ads (free tier only; removed with Pro subscription)
+- **InsForge**: database schedule updating;
+- **Google AdMob**: Displays ads (free tier only;
 
 ## License
 
-### Business Source License 1.1 (BSL 1.1)
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
-This project is licensed under the **Business Source License 1.1 (BSL 1.1)** with the following parameters:
+### Copyright
 
-| Parameter | Value |
-|-----------|-------|
-| **Licensor** | TunisGO |
-| **Licensed Work** | TunisGO -  a transit navigation app for Tunisia's transportation network |
-| **Additional Use Grant** | Personal use, educational use, and non-commercial research purposes |
-| **Change Date** | 2031-01-01 |
-| **Change License** | MIT License |
+Copyright (c) 2025 mnik-creator
 
 ### What You Can Do:
 - ✅ Use for **personal** purposes
-- ✅ Use for **educational** purposes
-- ✅ Use for **non-commercial research**
-- ✅ Create derivative works for the above purposes
+- ✅ Use for **commercial** purposes
+- ✅ **Modify** and distribute the software
+- ✅ **Sell** the software or derivative works
+- ✅ **Sublicense** the software
 
-### What You Cannot Do (Without Permission):
-- ❌ Use for **commercial purposes**
-- ❌ **Sell** the software or derivative works
-- ❌ Include in **commercial products** or services
-- ❌ **Sublicense** or rent the software
-
-### After the Change Date:
-On **January 1, 2031**, this license will automatically convert to the **MIT License**, and you will be free to use the software under MIT terms.
-
-For commercial licensing inquiries, please contact the copyright holder.
+You only need to include the original copyright notice and license in all copies or substantial portions of the software.
 
 See the full [LICENSE](LICENSE) file for complete terms.
