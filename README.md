@@ -1,3 +1,11 @@
+<p align="center">
+  <b>بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</b>
+</p>
+
+<p align="center">
+  <img src="assets/images/app_icon_android.png" width="120" alt="TunisGO logo">
+</p>
+
 # TunisGO — Public Transit Navigation for Tunisia
 
 TunisGO is an unofficial mobile transit navigation app for Tunisia's transportation network (now SNCFT), built with Flutter. It provides offline-first access to train schedules, real-time journey planning, and notifications for the Tunisian railway network.
@@ -18,6 +26,26 @@ TunisGO is an unofficial mobile transit navigation app for Tunisia's transportat
 |----------|--------|
 | Android  | Supported |
 | iOS      | Comming Soon |
+
+## Screenshots
+
+<p align="center">
+  <img src="assets/others/files/slide_01.png" width="180" alt="Screenshot 1">
+  <img src="assets/others/files/slide_02.png" width="180" alt="Screenshot 2">
+  <img src="assets/others/files/slide_03.png" width="180" alt="Screenshot 3">
+  <img src="assets/others/files/slide_04.png" width="180" alt="Screenshot 4">
+</p>
+<p align="center">
+  <img src="assets/others/files/slide_05.png" width="180" alt="Screenshot 5">
+  <img src="assets/others/files/slide_06.png" width="180" alt="Screenshot 6">
+  <img src="assets/others/files/slide_07.png" width="180" alt="Screenshot 7">
+</p>
+
+## Download
+
+<p align="center">
+  <img src="assets/others/qr.svg" width="180" alt="TunisGO download QR code">
+</p>
 
 ## Getting Started
 
