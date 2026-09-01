@@ -45,6 +45,10 @@ TunisGO is an unofficial mobile transit navigation app for Tunisia's transportat
 
 <p align="center">
   <img src="assets/others/qr.svg" width="180" alt="TunisGO download QR code">
+  <br>
+  <a href="https://play.google.com/store/apps/details?id=com.tunisgo">
+    <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" width="180" alt="Get it on Google Play">
+  </a>
 </p>
 
 ## Getting Started
