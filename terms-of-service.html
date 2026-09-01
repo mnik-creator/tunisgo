@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terms of Service — TunisGO</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #F7F5F0;
+    --surface: #FFFFFF;
+    --accent: #1D6A54;
+    --accent-light: #E1F5EE;
+    --text-primary: #1A1A1A;
+    --text-secondary: #555550;
+    --text-muted: #888880;
+    --border: rgba(0,0,0,0.08);
+    --red: #E24B4A;
+    --green: #3B6D11;
+    --amber: #BA7517;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    background: var(--bg);
+    color: var(--text-primary);
+    line-height: 1.75;
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--accent);
+    padding: 3rem 2rem 2.5rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 40px,
+      rgba(255,255,255,0.03) 40px,
+      rgba(255,255,255,0.03) 80px
+    );
+  }
+
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1.5rem;
+    position: relative;
+  }
+
+  .logo-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+
+  .logo-text {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: white;
+    letter-spacing: -0.3px;
+  }
+
+  header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(28px, 5vw, 42px);
+    color: white;
+    font-weight: 400;
+    letter-spacing: -0.5px;
+    position: relative;
+    margin-bottom: 0.5rem;
+  }
+
+  header p {
+    color: rgba(255,255,255,0.65);
+    font-size: 13px;
+    position: relative;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .container {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 5rem;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 3rem;
+  }
+
+  .summary-card {
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 1.1rem 1rem;
+    border: 0.5px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .summary-card .icon {
+    font-size: 20px;
+    margin-bottom: 2px;
+  }
+
+  .summary-card .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+  }
+
+  .summary-card .value {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1.4;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 20px;
+    width: fit-content;
+    margin-top: 2px;
+  }
+
+  .badge.green { background: #EAF3DE; color: #3B6D11; }
+  .badge.red { background: #FCEBEB; color: #A32D2D; }
+  .badge.amber { background: #FAEEDA; color: #854F0B; }
+
+  section {
+    margin-bottom: 2.5rem;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  .section-number {
+    width: 26px;
+    height: 26px;
+    background: var(--accent-light);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    font-weight: 400;
+    letter-spacing: -0.2px;
+    color: var(--text-primary);
+  }
+
+  p {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+  }
+
+  p:last-child { margin-bottom: 0; }
+
+  .highlight-box {
+    background: var(--accent-light);
+    border-radius: 12px;
+    padding: 1.1rem 1.25rem;
+    border-left: 3px solid var(--accent);
+    margin-top: 0.75rem;
+  }
+
+  .highlight-box p {
+    color: #0F6E56;
+    font-size: 14px;
+    margin: 0;
+  }
+
+  .warning-box {
+    background: #FAEEDA;
+    border-radius: 12px;
+    padding: 1.1rem 1.25rem;
+    border-left: 3px solid #BA7517;
+    margin-top: 0.75rem;
+  }
+
+  .warning-box p {
+    color: #854F0B;
+    font-size: 14px;
+    margin: 0;
+  }
+
+  .contact-card {
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 1.5rem;
+    border: 0.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .contact-avatar {
+    width: 48px;
+    height: 48px;
+    background: var(--accent-light);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+
+  .contact-info p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .contact-info a {
+    color: var(--accent);
+    font-weight: 500;
+    text-decoration: none;
+    font-size: 15px;
+  }
+
+  footer {
+    text-align: center;
+    padding: 2rem;
+    font-size: 12px;
+    color: var(--text-muted);
+    border-top: 0.5px solid var(--border);
+  }
+
+  @media (max-width: 500px) {
+    .summary-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🚆</div>
+    <span class="logo-text">TunisGO</span>
+  </div>
+  <h1>Terms of Service</h1>
+  <p>Effective date: April 1, 2026 &nbsp;·&nbsp; Last updated: April 22, 2026</p>
+</header>
+
+<div class="container">
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="icon">📋</div>
+      <div class="label">Data</div>
+      <div class="value">Public timetable data</div>
+      <span class="badge amber">◎ Reference only</span>
+    </div>
+    <div class="summary-card">
+      <div class="icon">⏱️</div>
+      <div class="label">Delays</div>
+      <div class="value">No liability for delays</div>
+      <span class="badge red">✗ Not guaranteed</span>
+    </div>
+    <div class="summary-card">
+      <div class="icon">🔓</div>
+      <div class="label">Usage</div>
+      <div class="value">Free, as-is</div>
+      <span class="badge green">✓ Open to all</span>
+    </div>
+  </div>
+
+  <section>
+    <div class="section-header">
+      <div class="section-number">1</div>
+      <h2>Acceptance of Terms</h2>
+    </div>
+    <p>By downloading, installing, or using TunisGO ("the App"), you agree to be bound by these Terms of Service. If you do not agree with any part of these terms, please do not use the App.</p>
+    <p>TunisGO is an independent, unofficial application and is not affiliated with, endorsed by, or officially connected to SNCFT (Société Nationale des Chemins de Fer Tunisiens) or any other transportation authority.</p>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div class="section-number">2</div>
+      <h2>Schedule Data &amp; Accuracy</h2>
+    </div>
+    <p>The developer provides information about train schedules and other transportation based on publicly available data. <strong>Some data may not correspond to actual current information.</strong></p>
+    <div class="warning-box">
+      <p>⚠️ All schedule information is provided for reference purposes only. The schedule is subject to change without notice. Always verify your journey with the official carrier (SNCFT) before travelling.</p>
+    </div>
+    <p style="margin-top: 0.75rem;">The App may display estimated or historical timetable data that does not reflect real-time changes, cancellations, or service disruptions.</p>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div class="section-number">3</div>
+      <h2>Limitation of Liability</h2>
+    </div>
+    <p>To the maximum extent permitted by applicable law, the developer shall not be liable for:</p>
+    <p>— The accuracy, completeness, or timeliness of any schedule information displayed in the App<br>
+    — Train delays, cancellations, or missed connections<br>
+    — Any losses, damages, costs, or inconveniences — direct, indirect, or consequential — resulting from the use or inability to use this information<br>
+    — Errors or omissions in timetable data sourced from public records</p>
+    <div class="highlight-box">
+      <p>The App is provided "as is" without any warranties, express or implied. Use of the App and reliance on its data is entirely at your own risk.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div class="section-number">4</div>
+      <h2>Permitted Use</h2>
+    </div>
+    <p>TunisGO is provided free of charge for personal, non-commercial use. You may not:</p>
+    <p>— Reverse-engineer, decompile, or redistribute the App or its data without prior written permission<br>
+    — Use the App for any unlawful purpose<br>
+    — Attempt to extract or scrape the bundled transit database for commercial use</p>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div class="section-number">5</div>
+      <h2>Third-Party Services</h2>
+    </div>
+    <p>The App integrates third-party services (Google AdMob, InsForge) that are governed by their own terms and privacy policies. The developer is not responsible for the practices of these third parties.</p>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div class="section-number">6</div>
+      <h2>Changes to These Terms</h2>
+    </div>
+    <p>The developer reserves the right to update these Terms of Service at any time. Continued use of the App after changes are posted constitutes acceptance of the revised terms. The effective date at the top of this page always reflects the latest version.</p>
+  </section>
+
+  <section>
+    <div class="section-header">
+      <div class="section-number">7</div>
+      <h2>Contact</h2>
+    </div>
+    <div class="contact-card">
+      <div class="contact-avatar">✉️</div>
+      <div class="contact-info">
+        <a href="mailto:mnik.dev@proton.me">mnik.dev@proton.me</a>
+        <p>Questions about these terms? We'll respond within 5 business days.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  &copy; 2026 TunisGO. All rights reserved. &nbsp;·&nbsp; Tunisia Transportation App
+</footer>
+
+</body>
+</html>

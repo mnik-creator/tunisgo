@@ -1,0 +1,15 @@
+{
+  "updated_at": "2026-05-17T00:00:00Z",
+  "schema_version": 1,
+  "databases": {
+    "sncft": {
+      "bucket": "sncft",
+      "version": 4,
+      "file": "sncft_v4.db",
+      "sha256": "218eece763741476d875f5ca553a347ec88d2aa0f04597669827006e03517d06",
+      "size_bytes": 581632,
+      "min_app_version": "1.0.0",
+      "released_at": "2026-05-17T00:00:00Z"
+    }
+  }
+}

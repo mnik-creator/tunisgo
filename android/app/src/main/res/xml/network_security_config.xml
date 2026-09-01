@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Enforce HTTPS for all connections -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Pin certificates for InsForge backend (optional, for enhanced security) -->
+    <!-- Uncomment and add your domain's certificate pins when ready -->
+    <!--
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">crknube9.eu-central.insforge.app</domain>
+        <pin-set expiration="2026-01-01">
+            <pin digest="SHA-256">YOUR_CERTIFICATE_PIN_HERE</pin>
+        </pin-set>
+    </domain-config>
+    -->
+</network-security-config>

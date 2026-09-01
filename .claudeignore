@@ -1,0 +1,21 @@
+# Build artifacts
+build/
+.dart_tool/
+.pub-cache/
+.pub/
+
+# Generated files
+*.g.dart
+*.freezed.dart
+
+# Platform build files
+android/.gradle/
+ios/Pods/
+ios/.symlinks/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store

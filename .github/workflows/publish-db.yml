@@ -1,0 +1,66 @@
+name: Publish GTFS Database
+
+on:
+  push:
+    paths:
+      - 'data/gtfs/**'
+  workflow_dispatch:
+    inputs:
+      operator:
+        description: 'Operator identifier (e.g. sncft, tcv)'
+        required: true
+        default: sncft
+      bucket:
+        description: 'InsForge Storage bucket name'
+        required: true
+        default: sncft
+      version:
+        description: 'Integer version number (overrides github.run_number)'
+        required: false
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install requests
+
+      - name: Build SQLite database from GTFS data
+        run: python scripts/gtfs_importer.py
+
+      - name: Determine version
+        id: version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          echo "num=${VERSION:-${{ github.run_number }}}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish SNCFT database to InsForge
+        if: github.event_name == 'push' || github.event.inputs.operator == 'sncft'
+        env:
+          INSFORGE_URL: ${{ secrets.INSFORGE_URL }}
+          INSFORGE_API_KEY: ${{ secrets.INSFORGE_API_KEY }}
+        run: |
+          python scripts/upload_db.py \
+            --operator sncft \
+            --bucket   sncft \
+            --version  ${{ steps.version.outputs.num }} \
+            --db       ./build/sncft.db
+
+      - name: Publish TCV database to InsForge
+        if: github.event.inputs.operator == 'tcv'
+        env:
+          INSFORGE_URL: ${{ secrets.INSFORGE_URL }}
+          INSFORGE_API_KEY: ${{ secrets.INSFORGE_API_KEY }}
+        run: |
+          python scripts/upload_db.py \
+            --operator tcv \
+            --bucket   tcv \
+            --version  ${{ steps.version.outputs.num }} \
+            --db       ./build/tcv.db
