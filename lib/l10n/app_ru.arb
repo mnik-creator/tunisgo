@@ -137,5 +137,17 @@
   "privacy_policy": "Политика конфиденциальности",
   "terms_of_service": "Условия использования",
   "may_arrive_late": "Возможно опоздание · НЕ В РЕАЛЬНОМ ВРЕМЕНИ",
-  "schedule_reference_note": "Данная информация носит справочный характер. Расписание может меняться."
+  "schedule_reference_note": "Данная информация носит справочный характер. Расписание может меняться.",
+  "live_title": "В реальном времени",
+  "live_updated_at": "Обновлено в {time}",
+  "live_source": "Источник: SNCFT",
+  "live_empty": "В ближайшие 2 часа поездов здесь нет",
+  "live_unavailable": "Данные в реальном времени сейчас недоступны",
+  "live_delay": "+{minutes} мин",
+  "live_on_time": "Вовремя",
+  "live_cancelled": "Отменён",
+  "live_departed": "Ушёл",
+  "days_except_saturday": "Кроме сб",
+  "days_mon_wed_fri": "Пн, ср, пт",
+  "days_tue_thu_sun": "Вт, чт, вс"
 }

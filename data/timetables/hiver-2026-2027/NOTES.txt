@@ -1,0 +1,25 @@
+# Corrections of obvious misprints on the posters (as printed -> used)
+BL-A_erriadh_tunis 110 MEGRINE: 16:12 -> 06:12
+BL-A_erriadh_tunis 146 RADES: 09:39 -> 09:29
+BL-A_erriadh_tunis 172 HAMMAM LIF: 10:19 -> 11:19
+BL-A_erriadh_tunis 174 HAMMAM LIF: 10:35 -> 11:35
+BL-A_erriadh_tunis 204 MEGRINE RYADH: 15:25 -> 14:25
+BL-A_tunis_erriadh 125 RADES: 17:55 -> 07:55
+BL-A_tunis_erriadh 139 TUNIS VILLE: 07:40 -> 08:40
+BL-A_tunis_erriadh 159 LYCEE RADES: 10:20 -> 11:20
+BL-A_tunis_erriadh 213 BIR EL BEY: 15:51 -> 17:51
+BL-A_tunis_erriadh 225 HAMMAM CHATT: 18:10 -> 19:10
+BL-A_tunis_erriadh 241 ARRET DU STADE: 21:05 -> 22:05
+BL-D_gobaa_tunis 656 LE BARDO: 14:47 -> 17:47
+BL-D_tunis_gobaa 635 LE BARDO: 13:39 -> 12:39
+BL-D_gobaa_tunis 628, 634: no day code printed -> treated as daily
+BL-E_tunis_bougatfa 517: no day code printed -> treated as daily
+BL-S_sousse_mahdia 503 SOUSSE Z IND: 5:41 -> 06:41
+
+# Simplifications (the DB schema cannot express these)
+L6 TRIKA (*): stop only on Sundays and Wednesdays -> stored as a regular stop.
+BL-S (Metro du Sahel): poster has no day legend -> all trains treated as daily.
+Not on the posters, so absent from the DB: Borj Cedria shuttles 5/912-5/913, Erriadh 291.
+The live feed calls line D trains "JEDEIDA - TUNIS" and line E trains "TUNIS - BIR ANIBA" (00TA4xx);
+they are the same services as BL-D 6xx / BL-E 4xx (identical times), just named differently upstream.
+Duplicate poster file LTA-...-scaled-2.jpg is byte-identical to LTA-...-scaled.jpg.

@@ -899,6 +899,9 @@ class _ScheduleGrid extends StatelessWidget {
       case 0x40: return (label: 'B', color: const Color(0xFF059669)); // Sun only
       case 0x1F: return (label: 'C', color: const Color(0xFF7C3AED)); // Mon–Fri
       case 0x60: return (label: 'D', color: const Color(0xFFDC2626)); // Sat–Sun
+      case 0x5F: return (label: 'E', color: const Color(0xFF2563EB)); // except Sat
+      case 0x15: return (label: 'F', color: const Color(0xFF0891B2)); // Mon, Wed, Fri
+      case 0x4A: return (label: 'G', color: const Color(0xFFDB2777)); // Tue, Thu, Sun
       case 0: return (label: '?', color: Colors.grey);
     }
     // Generic fallback for non-standard bitmasks
@@ -1059,6 +1062,14 @@ class _SheetFooter extends StatelessWidget {
                     children: [
                       Expanded(child: _LegendItem(symbol: 'C', color: const Color(0xFF7C3AED), label: loc.schedule_special_depart)),
                       Expanded(child: _LegendItem(symbol: 'D', color: const Color(0xFFDC2626), label: loc.schedule_sat_sun_holidays)),
+                      Expanded(child: _LegendItem(symbol: 'E', color: const Color(0xFF2563EB), label: loc.days_except_saturday)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(child: _LegendItem(symbol: 'F', color: const Color(0xFF0891B2), label: loc.days_mon_wed_fri)),
+                      Expanded(child: _LegendItem(symbol: 'G', color: const Color(0xFFDB2777), label: loc.days_tue_thu_sun)),
                       const Expanded(child: SizedBox.shrink()),
                     ],
                   ),

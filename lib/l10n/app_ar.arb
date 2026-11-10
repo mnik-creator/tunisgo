@@ -137,5 +137,17 @@
   "privacy_policy": "سياسة الخصوصية",
   "terms_of_service": "شروط الخدمة",
   "may_arrive_late": "قد يصل متأخراً · بدون تتبع فوري",
-  "schedule_reference_note": "هذه المعلومات للإشارة فقط. قد تتغير الجداول الزمنية."
+  "schedule_reference_note": "هذه المعلومات للإشارة فقط. قد تتغير الجداول الزمنية.",
+  "live_title": "مباشر",
+  "live_updated_at": "آخر تحديث {time}",
+  "live_source": "المصدر: الشركة الوطنية للسكك الحديدية التونسية",
+  "live_empty": "لا توجد قطارات هنا خلال الساعتين القادمتين",
+  "live_unavailable": "البيانات المباشرة غير متوفرة حاليًا",
+  "live_delay": "+{minutes} د",
+  "live_on_time": "في الموعد",
+  "live_cancelled": "ملغى",
+  "live_departed": "غادر",
+  "days_except_saturday": "ما عدا السبت",
+  "days_mon_wed_fri": "الإثنين والأربعاء والجمعة",
+  "days_tue_thu_sun": "الثلاثاء والخميس والأحد"
 }

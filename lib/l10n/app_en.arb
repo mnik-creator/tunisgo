@@ -137,5 +137,17 @@
   "privacy_policy": "Privacy Policy",
   "terms_of_service": "Terms of Service",
   "may_arrive_late": "May arrive late · NOT REAL-TIME TRACKING",
-  "schedule_reference_note": "This information is for reference only. The schedule is subject to change."
+  "schedule_reference_note": "This information is for reference only. The schedule is subject to change.",
+  "live_title": "Live",
+  "live_updated_at": "Updated at {time}",
+  "live_source": "Source: SNCFT",
+  "live_empty": "No trains running here in the next 2 hours",
+  "live_unavailable": "Live data is unavailable right now",
+  "live_delay": "+{minutes} min",
+  "live_on_time": "On time",
+  "live_cancelled": "Cancelled",
+  "live_departed": "Departed",
+  "days_except_saturday": "Except Sat.",
+  "days_mon_wed_fri": "Mon, Wed, Fri",
+  "days_tue_thu_sun": "Tue, Thu, Sun"
 }

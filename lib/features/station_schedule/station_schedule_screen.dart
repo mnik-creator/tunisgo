@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../config/live_config.dart';
 import '../../core/helpers/time_helpers.dart';
 import '../../core/models/station.dart';
 import '../../core/models/trip.dart';
@@ -12,6 +13,10 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/skeleton_card.dart';
 import '../../l10n/app_localizations.dart';
+import '../live/live_board.dart';
+import '../live/live_board_sheet.dart';
+import '../live/live_models.dart';
+import '../live/live_providers.dart';
 import '../../widgets/ads/native_ad_widget.dart';
 
 final _stationByCodeProvider =
@@ -81,6 +86,19 @@ class _StationScheduleScreenState
                     error: (_, _) => Text(widget.stationCode),
                   ),
                 ),
+                if (LiveConfig.isEnabled && stationAsync.valueOrNull != null)
+                  IconButton(
+                    tooltip: loc.live_title,
+                    icon: const Icon(Icons.sensors, color: kEmerald500),
+                    onPressed: () {
+                      final station = stationAsync.valueOrNull!;
+                      showLiveBoard(
+                        context,
+                        dbStationName: station.nameFr,
+                        displayName: station.localizedName(loc.localeName),
+                      );
+                    },
+                  ),
               ],
             ),
           ),
@@ -110,7 +128,12 @@ class _StationScheduleScreenState
                     message: loc.no_results,
                   );
                 }
-                return _DepartureList(stationId: station.id, loc: loc, isDark: isDark);
+                return _DepartureList(
+                  stationId: station.id,
+                  stationName: station.nameFr,
+                  loc: loc,
+                  isDark: isDark,
+                );
               },
             ),
           ),
@@ -199,17 +222,24 @@ class _TogglePill extends StatelessWidget {
 class _DepartureList extends ConsumerWidget {
   const _DepartureList({
     required this.stationId,
+    required this.stationName,
     required this.loc,
     required this.isDark,
   });
 
   final String stationId;
+
+  /// `stops.name`, used to find this station in the live feed.
+  final String stationName;
   final AppLocalizations loc;
   final bool isDark;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final departuresAsync = ref.watch(_departuresProvider(stationId));
+    final liveIndex = LiveConfig.isEnabled
+        ? ref.watch(liveTrainIndexProvider)
+        : const <String, List<LiveTrain>>{};
 
     return departuresAsync.when(
       loading: () => ListView(
@@ -254,6 +284,14 @@ class _DepartureList extends ConsumerWidget {
               row['service_id'] as String?,
               rawTripCode,
             );
+            final live = liveIndex.isEmpty
+                ? null
+                : matchTimetableRow(
+                    liveIndex,
+                    tripCode: rawTripCode,
+                    dbStationName: stationName,
+                    plannedHhmm: row['departure_time'] as String,
+                  );
 
             return Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -282,7 +320,13 @@ class _DepartureList extends ConsumerWidget {
                   '${loc.train_number} $trainNumber · ${servicesDaysLabel(serviceDays, loc)}',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
-                trailing: Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (live != null) LiveStatusBadge(call: live, loc: loc),
+                    Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
+                  ],
+                ),
                 onTap: () => context.goNamed('trip', pathParameters: {'id': tripId}),
               ),
             );

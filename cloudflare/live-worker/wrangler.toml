@@ -1,0 +1,13 @@
+name = "tunisgo-live"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+
+[triggers]
+crons = ["* * * * *"]
+
+[[r2_buckets]]
+binding = "LIVE_BUCKET"
+bucket_name = "tunisgo-live"
+
+[observability]
+enabled = true

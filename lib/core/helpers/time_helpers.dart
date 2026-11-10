@@ -39,5 +39,8 @@ String servicesDaysLabel(int bitmask, AppLocalizations loc) {
   if (bitmask == sundayOnly) return loc.sunday_only;
   if (bitmask == weekdays) return loc.filter_weekdays;
   if (bitmask == weekends) return loc.filter_weekend;
+  if (bitmask == 0x5F) return loc.days_except_saturday;
+  if (bitmask == 0x15) return loc.days_mon_wed_fri;
+  if (bitmask == 0x4A) return loc.days_tue_thu_sun;
   return loc.all_days;
 }

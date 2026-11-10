@@ -137,5 +137,31 @@
   "privacy_policy": "Politique de confidentialité",
   "terms_of_service": "Conditions d'utilisation",
   "may_arrive_late": "Peut arriver en retard · PAS DE SUIVI EN TEMPS RÉEL",
-  "schedule_reference_note": "Ces informations sont fournies à titre indicatif. Les horaires sont susceptibles de changer."
+  "schedule_reference_note": "Ces informations sont fournies à titre indicatif. Les horaires sont susceptibles de changer.",
+  "live_title": "En direct",
+  "live_updated_at": "Mis à jour à {time}",
+  "live_source": "Source : SNCFT",
+  "live_empty": "Aucun train en circulation ici dans les 2 prochaines heures",
+  "live_unavailable": "Données en direct indisponibles pour le moment",
+  "live_delay": "+{minutes} min",
+  "live_on_time": "À l'heure",
+  "live_cancelled": "Supprimé",
+  "live_departed": "Parti",
+  "@live_updated_at": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@live_delay": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "days_except_saturday": "Sauf sam.",
+  "days_mon_wed_fri": "Lun, mer, ven",
+  "days_tue_thu_sun": "Mar, jeu, dim"
 }

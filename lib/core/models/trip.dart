@@ -7,6 +7,9 @@ const _exceptSunday = 0x3F; // 63
 const _sundayOnly = 0x40; // 64
 const _weekdays = 0x1F; // 31 (Mon-Fri)
 const _weekends = 0x60; // 96 (Sat-Sun)
+const _exceptSaturday = 0x5F; // 95
+const _monWedFri = 0x15; // 21
+const _tueThuSun = 0x4A; // 74
 
 String _stripTripPrefix(String tripCode) {
   return tripCode
@@ -54,6 +57,12 @@ int _serviceTypeToBitmask(String? serviceType, String? tripCode) {
       case 'D':
       case 'D/*':
         return _weekends;
+      case 'E':
+        return _exceptSaturday;
+      case 'F':
+        return _monWedFri;
+      case 'G':
+        return _tueThuSun;
       default:
         break;
     }
