@@ -12,7 +12,10 @@ import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/skeleton_card.dart';
 import '../../l10n/app_localizations.dart';
 import '../favorites/favorites_provider.dart';
+import '../limits/earn_slot.dart';
+import '../limits/slot_limits_provider.dart';
 import '../notifications/notifications_service.dart';
+import '../notifications/notify_lead_picker.dart';
 import '../notifications/scheduled_trips_provider.dart';
 
 final _stopTimesProvider =
@@ -65,9 +68,17 @@ class TripDetailScreen extends ConsumerWidget {
                         color: Colors.white,
                       ),
                       tooltip: loc.save_favorite,
-                      onPressed: () => ref
-                          .read(favoriteTripIdsProvider.notifier)
-                          .toggle(tripId),
+                      onPressed: () async {
+                        final favs = ref.read(favoriteTripIdsProvider.notifier);
+                        if (isFavorite) return favs.remove(tripId);
+                        final hasRoom = await ensureSlot(
+                          context,
+                          ref,
+                          SlotKind.favorites,
+                          ref.read(favoriteTripIdsProvider).length,
+                        );
+                        if (hasRoom) await favs.add(tripId);
+                      },
                     ),
                   ),
                   Padding(
@@ -146,7 +157,8 @@ class TripDetailScreen extends ConsumerWidget {
                     itemBuilder: (context, i) {
                       final st = stopTimes[i];
                       final station = stationsMap[st.stationId];
-                      final stationName = station?.nameFr ?? 'Station #${st.stationId}';
+                      final stationName = station?.localizedName(loc.localeName) ??
+                          'Station #${st.stationId}';
                       final isFirst = i == 0;
                       final isLast = i == stopTimes.length - 1;
                       return _StopTimelineTile(
@@ -285,7 +297,7 @@ class _NotifyFab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final loc = AppLocalizations.of(context);
     final isScheduled =
-        ref.watch(scheduledNotifTripIdsProvider).contains(tripId);
+        ref.watch(scheduledNotifTripIdsProvider).containsKey(tripId);
 
     return FloatingActionButton.extended(
       backgroundColor: isScheduled ? Colors.amber : null,
@@ -310,6 +322,15 @@ class _NotifyFab extends ConsumerWidget {
     WidgetRef ref,
     AppLocalizations loc,
   ) async {
+    final hasRoom = await ensureSlot(
+      context,
+      ref,
+      SlotKind.reminders,
+      ref.read(scheduledNotifTripIdsProvider).length,
+    );
+    if (!hasRoom || !context.mounted) return;
+    final lead = await pickNotifyLeadMinutes(context, stopTimes.first.departureTime);
+    if (lead == null || !context.mounted) return;
     final service = NotificationsService.instance;
     final granted = await service.requestPermission();
     if (!granted) return;
@@ -319,19 +340,25 @@ class _NotifyFab extends ConsumerWidget {
       tripId: tripId,
       trainNumber: tripId,
       departureMinutes: stopTimes.first.departureTime,
+      minutesBefore: lead,
     );
     if (!context.mounted) return;
     if (result == ScheduleNotificationResult.success) {
-      ref.read(scheduledNotifTripIdsProvider.notifier).add(tripId);
+      final today = DateTime.now();
+      await ref.read(scheduledNotifTripIdsProvider.notifier).add(
+        tripId,
+        DateTime(today.year, today.month, today.day)
+            .add(Duration(minutes: stopTimes.first.departureTime - lead)),
+      );
     }
     final msg = switch (result) {
-      ScheduleNotificationResult.success => loc.notification_scheduled,
+      ScheduleNotificationResult.success =>
+      loc.notification_scheduled_at(minutesToHHMM(stopTimes.first.departureTime - lead)),
       ScheduleNotificationResult.alreadyPassed => loc.notification_already_passed,
-      ScheduleNotificationResult.departureTooSoon =>
-        loc.notification_departure_imminent,
+      ScheduleNotificationResult.departureTooSoon => loc.notification_time_passed,
       ScheduleNotificationResult.failed => null,
     };
-    if (msg != null) {
+    if (msg != null && context.mounted) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(msg)));
     }

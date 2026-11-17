@@ -1,5 +1,7 @@
 // Copyright (c) 2025 mnik-creator
 // Licensed under MIT — see LICENSE file
+import 'package:intl/intl.dart';
+
 import '../../l10n/app_localizations.dart';
 
 /// Parses a "HH:MM" string from the DB into minutes since midnight.
@@ -42,5 +44,11 @@ String servicesDaysLabel(int bitmask, AppLocalizations loc) {
   if (bitmask == 0x5F) return loc.days_except_saturday;
   if (bitmask == 0x15) return loc.days_mon_wed_fri;
   if (bitmask == 0x4A) return loc.days_tue_thu_sun;
-  return loc.all_days;
+  if (bitmask & 0x7F == 0) return loc.all_days;
+  // Any other combination: localized short weekday names, e.g. "mer., dim.".
+  final names = DateFormat.E(loc.localeName);
+  return [
+    for (var i = 0; i < 7; i++)
+      if (bitmask & (1 << i) != 0) names.format(DateTime(2024, 1, 1 + i)),
+  ].join(', ');
 }

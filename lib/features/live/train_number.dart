@@ -11,6 +11,7 @@
 //   00TA014           ligne_r_…_14                      14
 //   00TM2             ligne_r_ghardimaou_tunis_TM2      TM2
 //   TA01025           mainlines_1/25                    1-25
+//   01TA004           mainlines_1/4                     1-4
 //
 // Keys can collide across lines (Bir Aniba shuttle `00TA507` vs Sahel `507`),
 // so a key match alone is never enough — see `matchTimetableRow`.
@@ -29,6 +30,11 @@ String liveTrainKey(String number) {
   final ta = RegExp(r'^0*TA(\d{2})(\d{3})$').firstMatch(n);
   if (ta != null) {
     return [ta.group(1)!, ta.group(2)!].map(int.parse).where((p) => p != 0).join('-');
+  }
+  // `01TA004` -> `1-4` (AA TA CCC; `00TA014` falls through to `14`).
+  final aaTa = RegExp(r'^(\d{2})TA(\d{3})$').firstMatch(n);
+  if (aaTa != null && aaTa.group(1) != '00') {
+    return '${int.parse(aaTa.group(1)!)}-${int.parse(aaTa.group(2)!)}';
   }
   // `00TA014` -> `14`, `00TM2` -> `TM2`.
   final t = RegExp(r'^0*T([AM])0*(\d+)$').firstMatch(n);

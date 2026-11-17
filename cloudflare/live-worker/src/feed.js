@@ -102,10 +102,48 @@ export function selectForRefresh(trains, nowS) {
   return ranked.map((r) => r.t);
 }
 
+/// Tunisia is UTC+1 all year (no DST since 2009).
+const TUNIS_OFFSET_MIN = 60;
+
+/// Night window (Tunis time, minutes since midnight) when, unless a train is
+/// still running, the Worker polls only every [NIGHT_INTERVAL_MIN] minutes.
+/// The last suburban trains end around 00:15 and the first leave at 04:30.
+export const NIGHT_START_MIN = 30;
+export const NIGHT_END_MIN = 4 * 60 + 15;
+export const NIGHT_INTERVAL_MIN = 15;
+
+export function tunisMinuteOfDay(now) {
+  const m = now.getUTCHours() * 60 + now.getUTCMinutes() + TUNIS_OFFSET_MIN;
+  return m % (24 * 60);
+}
+
+/// Minutes between SNCFT polls at [now] given how many trains the last
+/// snapshot showed running. Overnight trains keep the 1-minute cadence.
+export function pollIntervalMinutes(now, runningCount) {
+  if (runningCount > 0) return 1;
+  const m = tunisMinuteOfDay(now);
+  return m >= NIGHT_START_MIN && m < NIGHT_END_MIN ? NIGHT_INTERVAL_MIN : 1;
+}
+
+/// Whether the cron run at [now] should poll SNCFT. Night runs are aligned to
+/// the interval (00:30, 00:45, …) so the cadence survives missed runs.
+export function shouldPoll(now, runningCount) {
+  const interval = pollIntervalMinutes(now, runningCount);
+  return interval === 1 || tunisMinuteOfDay(now) % interval === 0;
+}
+
+export function countRunning(trains) {
+  return trains.filter((t) => t.status === 'EN_ROUTE').length;
+}
+
+/// [nextAt] tells the app when the next poll is due, so a quiet-night file is
+/// not mistaken for a broken feed.
 export function buildFeed(trains, now = new Date()) {
+  const interval = pollIntervalMinutes(now, countRunning(trains));
   return {
     v: FEED_VERSION,
     generatedAt: now.toISOString(),
+    nextAt: new Date(now.getTime() + interval * 60_000).toISOString(),
     source: 'sncft.com.tn',
     trains,
   };

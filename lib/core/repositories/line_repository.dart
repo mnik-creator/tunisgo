@@ -11,9 +11,12 @@ import '../models/station.dart';
 // - Sahel suburban: 231A-267S/267S-231A (Sousse-Mahdia),
 //                   231A-MahZT/MahZT-231A (Sousse-Mahdia Zone Touristique),
 //                   267S-238H/238H-267S (Mahdia-Monastir)
+// - TRANSTU (transtu.db, operator 2): long_name "TGM …" -> tgm, "M1 …" -> metro
 // - All others: mainline
 const _lineTypeExpr = '''
   CASE
+    WHEN r.operator_id = 2 AND r.long_name LIKE 'TGM %' THEN 'tgm'
+    WHEN r.operator_id = 2 THEN 'metro'
     WHEN r.short_name IN ('120S-160P', '160P-120S') THEN 'suburban_tunis'
     WHEN r.short_name IN ('120S-615E', '615E-120S') THEN 'suburban_tunis'
     WHEN r.short_name IN ('120S-615B', '615B-120S') THEN 'suburban_tunis'

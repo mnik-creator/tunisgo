@@ -29,6 +29,10 @@ class Station {
   final String nameRu;
   final bool isActive;
 
+  /// Stops from transtu.db (ids 10000+, tools/build_transtu_db.py). They have
+  /// no live SNCFT data, so the live board is hidden for them.
+  bool get isTranstu => (int.tryParse(id) ?? 0) >= 10000;
+
   String localizedName(String languageCode) {
     switch (languageCode) {
       case 'ar':

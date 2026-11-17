@@ -6,10 +6,11 @@
 // defensive because the upstream feed is undocumented.
 
 class LiveFeed {
-  const LiveFeed({required this.generatedAt, required this.trains});
+  const LiveFeed({required this.generatedAt, required this.trains, this.nextAt});
 
   factory LiveFeed.fromJson(Map<String, dynamic> json) => LiveFeed(
     generatedAt: DateTime.tryParse('${json['generatedAt'] ?? ''}')?.toUtc(),
+    nextAt: DateTime.tryParse('${json['nextAt'] ?? ''}')?.toUtc(),
     trains: (json['trains'] as List<dynamic>? ?? const [])
         .whereType<Map<String, dynamic>>()
         .map(LiveTrain.fromJson)
@@ -19,10 +20,18 @@ class LiveFeed {
   final DateTime? generatedAt;
   final List<LiveTrain> trains;
 
+  /// When the Worker plans its next poll (later on quiet nights).
+  final DateTime? nextAt;
+
+  /// True when the file is older than [maxAge] and also overdue past the
+  /// announced [nextAt] by more than [maxAge] - 1 min of slack.
   bool isStale(Duration maxAge, {DateTime? now}) {
     final at = generatedAt;
     if (at == null) return true;
-    return (now ?? DateTime.now().toUtc()).difference(at) > maxAge;
+    final t = now ?? DateTime.now().toUtc();
+    if (t.difference(at) <= maxAge) return false;
+    final next = nextAt;
+    return next == null || t.difference(next) > maxAge - const Duration(minutes: 1);
   }
 }
 

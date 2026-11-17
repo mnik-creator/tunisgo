@@ -12,7 +12,7 @@
   "no_results": "Aucun résultat trouvé",
   "no_connection_found": "Aucune liaison trouvée entre ces deux gares",
   "offline_mode": "Mode hors-ligne",
-  "source_official": "Données : SNCFT (sncft.com.tn)",
+  "source_official": "Données : SNCFT (sncft.com.tn), TRANSTU (transtu.tn)",
   "search": "Rechercher",
   "settings": "Paramètres",
   "favorites": "Favoris",
@@ -29,7 +29,7 @@
   "all_departures_today": "Tous les départs aujourd'hui",
   "train_number": "Train n°",
   "duration": "Durée",
-  "disclaimer": "Tunis GO n'est pas une application officielle de la SNCFT.\nLes données proviennent des horaires officiels publiés sur sncft.com.tn.",
+  "disclaimer": "Tunis GO n'est pas une application officielle de la SNCFT ni de la TRANSTU.\nLes données proviennent des horaires officiels publiés sur sncft.com.tn et transtu.tn. Les horaires du métro et du TGM sont estimés à partir des premiers et derniers départs et de la fréquence publiés.",
   "app_version": "Version de l'application",
   "data_source": "Source des données",
   "select_time": "Choisir l'heure",
@@ -52,15 +52,17 @@
   "line_main": "LIGNES PRINCIPALES",
   "line_suburban_tunis": "BANLIEUE DE TUNIS",
   "line_suburban_sahel": "BANLIEUE DU SAHEL",
+  "line_transtu": "MÉTRO ET TGM (TRANSTU)",
+  "schedule_estimated": "Horaire estimé : TRANSTU publie seulement le premier et le dernier départ et la fréquence",
   "see_schedule": "Voir les horaires",
   "account_tab_title": "Compte",
   "preferences": "PRÉFÉRENCES",
   "theme_system": "Système",
   "my_favorites": "MES FAVORIS",
-  "see_favorites": "Voir mes favoris",
   "about": "À PROPOS",
   "close": "Fermer",
   "schedule_source": "Horaires SNCFT",
+  "schedule_source_transtu": "Horaires estimés · TRANSTU (premier/dernier départ et fréquence officiels)",
   "schedule_no_trains": "Aucun train disponible",
   "schedule_col_train": "Train №",
   "schedule_col_days": "Jours",
@@ -147,6 +149,18 @@
   "live_on_time": "À l'heure",
   "live_cancelled": "Supprimé",
   "live_departed": "Parti",
+  "live_running_late": "En retard de {minutes} min · prévu à {time}",
+  "live_board_button": "Départs en direct",
+  "@live_running_late": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "@live_updated_at": {
     "placeholders": {
       "time": {
@@ -163,5 +177,116 @@
   },
   "days_except_saturday": "Sauf sam.",
   "days_mon_wed_fri": "Lun, mer, ven",
-  "days_tue_thu_sun": "Mar, jeu, dim"
+  "days_tue_thu_sun": "Mar, jeu, dim",
+  "live_cancelled_header": "Train supprimé · SNCFT",
+  "position_live": "Position en direct · SNCFT",
+  "position_by_schedule": "Position estimée selon l'horaire (pas encore signalé par SNCFT)",
+  "stop_only_on": "Arrêt seulement : {days}",
+  "ad_label": "Pub",
+  "ad_privacy_options": "Confidentialité des annonces",
+  "@stop_only_on": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "notify_pick_title": "Quand vous prévenir ?",
+  "notify_minutes_before": "{minutes} min avant le départ",
+  "@notify_minutes_before": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "notify_pick_time": "Choisir l'heure",
+  "notification_scheduled_at": "Rappel programmé à {time}",
+  "@notification_scheduled_at": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "notification_time_passed": "Cette heure est déjà passée",
+  "notify_time_after_departure": "Choisissez une heure avant le départ",
+  "favorites_limit_reached": "5 trains favoris au maximum",
+  "notifications_limit_reached": "5 rappels au maximum — supprimez-en un dans les Réglages",
+  "my_reminders": "MES RAPPELS",
+  "no_reminders": "Aucun rappel. Appuyez sur « Me notifier » dans un trajet.",
+  "reminder_at": "Rappel à {time}",
+  "remove": "Supprimer",
+  "@reminder_at": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "slot_limit_title": "Limite atteinte",
+  "slot_offer_favorites": "Regardez une courte publicité pour enregistrer 1 favori de plus.",
+  "slot_offer_reminders": "Regardez une courte publicité pour programmer 1 rappel de plus.",
+  "slot_offer_rules": "Gratuit : 1. Chaque publicité ajoute 1 place (5 au maximum). Les places en plus sont valables 7 jours, puis la limite revient à 1.",
+  "slot_watch_ad": "Regarder la pub",
+  "slot_ad_unavailable": "Aucune publicité disponible pour le moment. Réessayez plus tard.",
+  "slot_earned": "+1 place jusqu’au {date}",
+  "@slot_earned": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "slot_usage": "{used} / {limit}",
+  "@slot_usage": {
+    "placeholders": {
+      "used": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "slot_bonus_until": "places en plus jusqu’au {date}",
+  "@slot_bonus_until": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "slot_get_more": "+1 place",
+  "share": "Partager",
+  "share_app": "Partager TunisGO",
+  "share_app_text": "TunisGO — les horaires des trains en Tunisie avec les retards en direct. Gratuit : https://tunisgo.pages.dev",
+  "share_trip_text": "🚆 Train {train} : {from} {dep} → {to} {arr}",
+  "share_trip_footer": "Retards en direct dans TunisGO : https://tunisgo.pages.dev",
+  "@share_trip_text": {
+    "placeholders": {
+      "train": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      },
+      "dep": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      },
+      "arr": {
+        "type": "String"
+      }
+    }
+  },
+  "widget_title": "Mes trains",
+  "widget_empty": "Ajoutez un train aux favoris pour le voir ici",
+  "widget_tomorrow": "demain",
+  "widget_day_names": "lun,mar,mer,jeu,ven,sam,dim",
+  "@widget_day_names": {
+    "description": "Short weekday names Monday..Sunday, comma-separated, for the home-screen widget"
+  }
 }

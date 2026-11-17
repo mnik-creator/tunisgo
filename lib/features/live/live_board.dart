@@ -132,3 +132,132 @@ Map<String, List<LiveTrain>> indexByTrainKey(LiveFeed feed) {
   }
   return index;
 }
+
+/// Live call for an already-scheduled-past [tripCode] when the train is
+/// running late and is still expected at [dbStationName] at or after
+/// [refMinutes] (and within [maxAheadMinutes]). Null when the feed has no
+/// evidence of a delay — a train that merely "may" be late is not shown.
+LiveCall? lateDeparture(
+  Map<String, List<LiveTrain>> trainsByKey, {
+  required String tripCode,
+  required String dbStationName,
+  required String plannedHhmm,
+  required int refMinutes,
+  int maxAheadMinutes = 90,
+}) {
+  final call = matchTimetableRow(
+    trainsByKey,
+    tripCode: tripCode,
+    dbStationName: dbStationName,
+    plannedHhmm: plannedHhmm,
+  );
+  if (call == null || call.isCancelled || call.isPassed) return null;
+  if (!call.train.isRunning || call.delayMinutes <= 0) return null;
+  final eta = minutesOfDay(call.eta);
+  if (eta == null) return null;
+  final ahead = clockDelta(refMinutes, eta);
+  return ahead >= 0 && ahead <= maxAheadMinutes ? call : null;
+}
+
+/// Where a train is along a timetable stop list, snapped to "at a stop" or
+/// "halfway to the next one".
+class TrainPosition {
+  const TrainPosition({required this.lastPassed, required this.atStation});
+
+  /// Index into the stop list of the last stop reached (all up to it are done).
+  final int lastPassed;
+
+  /// True: standing at [lastPassed]; false: between it and the next stop.
+  final bool atStation;
+}
+
+/// Position of [train] along [dbStationNames] (the trip's stops in order) at
+/// [nowMinutes]. Uses actual times where SNCFT reported them, otherwise
+/// planned times shifted by the train's delay — the feed often stops
+/// reporting actuals mid-run. Null when the train is not on its way.
+TrainPosition? positionAlongStops(
+  LiveTrain train,
+  List<String> dbStationNames, {
+  required int nowMinutes,
+}) {
+  if (dbStationNames.isEmpty || train.isCancelled) return null;
+  final last = dbStationNames.length - 1;
+  if (train.isFinished) return TrainPosition(lastPassed: last, atStation: true);
+  if (!train.isRunning) return null;
+
+  bool reached(String? actual, String? estimate) {
+    if (actual != null) return true;
+    final m = minutesOfDay(estimate);
+    return m != null && clockDelta(nowMinutes, m) <= 0;
+  }
+
+  var lastPassed = -1;
+  var atStation = false;
+  for (var i = 0; i < dbStationNames.length; i++) {
+    LiveStopTime? stop;
+    for (final s in train.stops) {
+      if (isSameStation(s.name, dbStationNames[i])) {
+        stop = s;
+        break;
+      }
+    }
+    if (stop == null) continue; // not in the feed — judge by its neighbours
+    final delay = train.delayMinutes;
+    final departed = reached(
+      stop.actualDeparture,
+      shiftHhmm(stop.planDeparture ?? stop.planArrival, delay),
+    );
+    if (departed) {
+      lastPassed = i;
+      atStation = false;
+      continue;
+    }
+    final arrived = reached(
+      stop.actualArrival,
+      stop.forecastArrival ?? shiftHhmm(stop.planArrival ?? stop.planDeparture, delay),
+    );
+    if (arrived) {
+      lastPassed = i;
+      atStation = true;
+    }
+    break;
+  }
+  if (lastPassed < 0) return null;
+  return TrainPosition(lastPassed: lastPassed, atStation: atStation || lastPassed == last);
+}
+
+/// Position along a timetable stop list judged by the clock alone: for trains
+/// the feed does not track or has not reported as departed yet. [arrivals]
+/// and [departures] are minutes since midnight from the offline timetable (may
+/// run past 24:00 for overnight trains); [delayMinutes] shifts them all. Null
+/// before the first departure.
+TrainPosition? positionBySchedule(
+  List<int> arrivals,
+  List<int> departures, {
+  required int nowMinutes,
+  int delayMinutes = 0,
+}) {
+  final n = departures.length;
+  if (n == 0 || arrivals.length != n) return null;
+  var now = nowMinutes;
+  // Past midnight on a train that left yesterday evening.
+  if (departures.last >= 24 * 60 && now + 12 * 60 < departures.first) now += 24 * 60;
+  var lastPassed = -1;
+  var atStation = false;
+  for (var i = 0; i < n; i++) {
+    final dep = departures[i] + delayMinutes;
+    final arr = (i == 0 || arrivals[i] == 0 ? departures[i] : arrivals[i]) + delayMinutes;
+    if (i < n - 1 && dep <= now) {
+      lastPassed = i;
+      atStation = false;
+      continue;
+    }
+    if (i > 0 && arr <= now) {
+      lastPassed = i;
+      atStation = true;
+    }
+    break;
+  }
+  if (lastPassed < 0) return null;
+  return TrainPosition(lastPassed: lastPassed, atStation: atStation);
+}

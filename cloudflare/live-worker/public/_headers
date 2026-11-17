@@ -1,0 +1,6 @@
+/db/manifest.json
+  Cache-Control: public, max-age=300
+  Access-Control-Allow-Origin: *
+
+/db/*.db
+  Cache-Control: public, max-age=31536000, immutable

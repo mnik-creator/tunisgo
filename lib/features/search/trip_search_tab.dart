@@ -23,6 +23,11 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../widgets/ad_banner_widget.dart';
 import '../../widgets/ads/native_ad_widget.dart';
+import '../../config/live_config.dart';
+import '../../core/helpers/time_helpers.dart';
+import '../live/live_board.dart';
+import '../live/live_board_sheet.dart';
+import '../live/live_providers.dart';
 import '../trip_detail/trip_detail_bottom_sheet.dart';
 
 final _isRamadanProvider = FutureProvider<bool>((ref) {
@@ -48,6 +53,8 @@ class _TripSearchTabState extends ConsumerState<TripSearchTab> {
 
   String? _fromId;
   String? _toId;
+  Station? _fromStation;
+  Station? _toStation;
 
   // null = no filter (show all trains), otherwise filter from this time
   TimeOfDay? _time;
@@ -60,13 +67,21 @@ class _TripSearchTabState extends ConsumerState<TripSearchTab> {
   bool _toFocused = false;
   bool _isLoading = false;
   List<Trip>? _results;
-  Trip? _previousTrain;
+  // Trips that left shortly before the search time; one is shown on top only
+  // when the live feed says it is late and still to come (see _lateTrain).
+  List<Trip> _recentTrains = const [];
+  int? _searchMinutes;
   bool _noConnection = false;
 
   List<Station> _fromSuggestions = [];
   List<Station> _toSuggestions = [];
 
   OverlayEntry? _overlayEntry;
+
+  // Latest suggestion request per field; slower, older lookups (e.g. the
+  // full list after clearing the field) must not overwrite newer results.
+  int _fromRequest = 0;
+  int _toRequest = 0;
 
   @override
   void initState() {
@@ -116,37 +131,53 @@ class _TripSearchTabState extends ConsumerState<TripSearchTab> {
   // ─── Suggestions (state-based, avoids ref.watch inside OverlayEntry) ─────
 
   Future<void> _fetchSuggestions(String query, bool isFrom) async {
+    final request = isFrom ? ++_fromRequest : ++_toRequest;
     final repo = ref.read(stationRepositoryProvider);
     final service = ref.read(frequentStationsServiceProvider);
     List<Station> stations;
     if (!isFrom && _fromId != null) {
-      final reachable = await repo.getReachableStations(_fromId!, query: query.isEmpty ? null : query);
+      final reachable = await repo.getReachableStations(
+        _fromId!,
+        query: query.isEmpty ? null : query,
+      );
       if (query.isEmpty) {
         final topIds = service.getTopDestinationIds();
         final frequent = await repo.getStationsByIds(topIds);
         final reachableIds = {for (final s in reachable) s.id};
-        final frequentReachable = frequent.where((s) => reachableIds.contains(s.id)).toList();
+        final frequentReachable = frequent
+            .where((s) => reachableIds.contains(s.id))
+            .toList();
         final frequentIds = {for (final s in frequentReachable) s.id};
-        stations = [...frequentReachable, ...reachable.where((s) => !frequentIds.contains(s.id))];
+        stations = [
+          ...frequentReachable,
+          ...reachable.where((s) => !frequentIds.contains(s.id)),
+        ];
       } else {
         stations = reachable;
       }
     } else if (query.isEmpty && isFrom) {
       final topIds = service.getTopDepartureIds();
       final frequent = await repo.getStationsByIds(topIds);
-      final all = await repo.getAllStations();
+      final all = await repo.getServedStations();
       final frequentIds = {for (final s in frequent) s.id};
-      stations = [...frequent, ...all.where((s) => !frequentIds.contains(s.id))];
+      stations = [
+        ...frequent,
+        ...all.where((s) => !frequentIds.contains(s.id)),
+      ];
     } else if (query.isEmpty) {
       final topIds = service.getTopDestinationIds();
       final frequent = await repo.getStationsByIds(topIds);
-      final all = await repo.getAllStations();
+      final all = await repo.getServedStations();
       final frequentIds = {for (final s in frequent) s.id};
-      stations = [...frequent, ...all.where((s) => !frequentIds.contains(s.id))];
+      stations = [
+        ...frequent,
+        ...all.where((s) => !frequentIds.contains(s.id)),
+      ];
     } else {
       stations = await repo.searchByName(query);
     }
     if (!mounted) return;
+    if (request != (isFrom ? _fromRequest : _toRequest)) return;
     setState(() {
       if (isFrom) {
         _fromSuggestions = stations;
@@ -161,8 +192,7 @@ class _TripSearchTabState extends ConsumerState<TripSearchTab> {
 
   void _showOverlay(GlobalKey fieldKey, LayerLink layerLink, bool isFrom) {
     _removeOverlay();
-    final renderBox =
-        fieldKey.currentContext?.findRenderObject() as RenderBox?;
+    final renderBox = fieldKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
     final fieldWidth = renderBox.size.width;
     final langCode = ref.read(localeProvider).languageCode;
@@ -203,6 +233,29 @@ class _TripSearchTabState extends ConsumerState<TripSearchTab> {
     _overlayEntry = null;
   }
 
+  /// Hides the station suggestions; they live in the root overlay and would
+  /// otherwise stay on top of any sheet opened from this tab.
+  void _closeSuggestions() {
+    FocusScope.of(context).unfocus();
+    if (_fromFocused || _toFocused) {
+      setState(() {
+        _fromFocused = false;
+        _toFocused = false;
+      });
+    }
+    _removeOverlay();
+  }
+
+  void _openTrip(Trip trip) {
+    _closeSuggestions();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => TripDetailBottomSheet(trip: trip, isToday: _isToday),
+    );
+  }
+
   // ─── Logic ───────────────────────────────────────────────────────────────
 
   List<Trip> _applyFilter(List<Trip> trips) {
@@ -216,33 +269,73 @@ class _TripSearchTabState extends ConsumerState<TripSearchTab> {
     return result;
   }
 
+  bool get _isToday {
+    final now = DateTime.now();
+    final d = _date ?? now;
+    return d.year == now.year && d.month == now.month && d.day == now.day;
+  }
+
+  /// Most recent already-scheduled train that is running late and still
+  /// expected at the departure station after the search time.
+  Trip? _lateTrain() {
+    if (!LiveConfig.isEnabled ||
+        _recentTrains.isEmpty ||
+        _searchMinutes == null) {
+      return null;
+    }
+    final index = ref.watch(liveTrainIndexProvider);
+    for (final trip in _recentTrains) {
+      final from = trip.fromStationName;
+      if (from == null) continue;
+      final call = lateDeparture(
+        index,
+        tripCode: trip.tripCode,
+        dbStationName: from,
+        plannedHhmm: minutesToHHMM(trip.departureTime),
+        refMinutes: _searchMinutes!,
+      );
+      if (call != null) return trip;
+    }
+    return null;
+  }
+
   Future<void> _doSearch() async {
     if (_fromId == null || _toId == null) return;
     FocusScope.of(context).unfocus();
     setState(() {
       _isLoading = true;
       _results = null;
-      _previousTrain = null;
+      _recentTrains = const [];
       _noConnection = false;
     });
     _removeOverlay();
+    // Full-screen ad at the break between pressing Search and the results,
+    // never on top of results the rider is already reading.
+    final tracker = ref.read(sessionTrackerProvider.notifier)
+      ..incrementSearch();
+    if (tracker.canShowInterstitial() &&
+        await InterstitialAdService.showAndWait()) {
+      tracker.markInterstitialShown();
+    }
+    if (!mounted) return;
     try {
-      final minutes =
-          _time != null ? _time!.hour * 60 + _time!.minute : null;
-      final trips = await ref.read(tripRepositoryProvider).searchTrips(
-        _fromId!,
-        _toId!,
-        afterMinutes: _isDeparture ? minutes : null,
-        arrivalBeforeMinutes: _isDeparture ? null : minutes,
-      );
-      Trip? prevTrain;
-      if (_isDeparture && minutes != null) {
-        final prev = await ref
-            .read(tripRepositoryProvider)
-            .getPreviousTrain(_fromId!, _toId!, minutes);
-        if (prev != null && minutes - prev.departureTime <= 15) {
-          prevTrain = prev.copyWith(mayArriveLate: true);
-        }
+      final minutes = _time != null ? _time!.hour * 60 + _time!.minute : null;
+      final trips = await ref
+          .read(tripRepositoryProvider)
+          .searchTrips(
+            _fromId!,
+            _toId!,
+            afterMinutes: _isDeparture ? minutes : null,
+            arrivalBeforeMinutes: _isDeparture ? null : minutes,
+          );
+      var recent = const <Trip>[];
+      if (_isDeparture && minutes != null && _isToday) {
+        recent =
+            (await ref
+                    .read(tripRepositoryProvider)
+                    .getRecentTrains(_fromId!, _toId!, minutes))
+                .map((t) => t.copyWith(mayArriveLate: true))
+                .toList();
       }
       bool noConnection = false;
       if (trips.isEmpty) {
@@ -253,7 +346,8 @@ class _TripSearchTabState extends ConsumerState<TripSearchTab> {
       if (mounted) {
         setState(() {
           _results = trips;
-          _previousTrain = prevTrain;
+          _recentTrains = recent;
+          _searchMinutes = minutes;
           _noConnection = noConnection;
         });
       }
@@ -263,15 +357,6 @@ class _TripSearchTabState extends ConsumerState<TripSearchTab> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
-    }
-
-    // Session tracking + interstitial frequency cap
-    final tracker = ref.read(sessionTrackerProvider.notifier);
-    tracker.incrementSearch();
-    final session = ref.read(sessionTrackerProvider);
-    if (session.canShowInterstitial) {
-      await InterstitialAdService.show();
-      tracker.markInterstitialShown();
     }
   }
 
@@ -283,6 +368,9 @@ class _TripSearchTabState extends ConsumerState<TripSearchTab> {
       _fromController.text = _toController.text;
       _toId = tempId;
       _toController.text = tempText;
+      final tempStation = _fromStation;
+      _fromStation = _toStation;
+      _toStation = tempStation;
     });
   }
 
@@ -297,14 +385,17 @@ class _TripSearchTabState extends ConsumerState<TripSearchTab> {
     setState(() {
       if (isFrom) {
         _fromId = station.id;
+        _fromStation = station;
         _fromController.text = name;
         _fromFocused = false;
         // Reset the "to" field so the user picks from reachable stations only
         _toId = null;
+        _toStation = null;
         _toController.clear();
         _noConnection = false;
       } else {
         _toId = station.id;
+        _toStation = station;
         _toController.text = name;
         _toFocused = false;
       }
@@ -317,17 +408,20 @@ class _TripSearchTabState extends ConsumerState<TripSearchTab> {
   }
 
   Future<void> _pickDateTime() async {
-    final result = await showModalBottomSheet<
-        ({DateTime date, TimeOfDay time, bool isDeparture})>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _DateTimePickerSheet(
-        initialDate: _date ?? DateTime.now(),
-        initialTime: _time ?? TimeOfDay.now(),
-        initialIsDeparture: _isDeparture,
-      ),
-    );
+    _closeSuggestions();
+    final result =
+        await showModalBottomSheet<
+          ({DateTime date, TimeOfDay time, bool isDeparture})
+        >(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => _DateTimePickerSheet(
+            initialDate: _date ?? DateTime.now(),
+            initialTime: _time ?? TimeOfDay.now(),
+            initialIsDeparture: _isDeparture,
+          ),
+        );
     if (!mounted || result == null) return;
     setState(() {
       _date = result.date;
@@ -364,15 +458,14 @@ class _TripSearchTabState extends ConsumerState<TripSearchTab> {
           ),
           Expanded(
             child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _fromFocused = false;
-                  _toFocused = false;
-                });
-                _removeOverlay();
-              },
+              onTap: _closeSuggestions,
               child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(context).padding.bottom + 16),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  16,
+                  16,
+                  MediaQuery.of(context).padding.bottom + 16,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -403,14 +496,17 @@ class _TripSearchTabState extends ConsumerState<TripSearchTab> {
                       onChanged: (q) {
                         setState(() {
                           _fromId = null;
+                          _fromStation = null;
                           _noConnection = false;
+                          // Typing makes this field the active one again,
+                          // even after the list was closed by a tap outside.
+                          _fromFocused = true;
+                          _toFocused = false;
                         });
                         _fetchSuggestions(q, true);
                         // Reset "to" suggestions to all stations when from is cleared
                         _fetchSuggestions(_toController.text, false);
-                        if (_fromFocused) {
-                          _showOverlay(_fromFieldKey, _fromLayerLink, true);
-                        }
+                        _showOverlay(_fromFieldKey, _fromLayerLink, true);
                       },
                       dotColor: kEmerald500,
                     ),
@@ -435,11 +531,14 @@ class _TripSearchTabState extends ConsumerState<TripSearchTab> {
                         _showOverlay(_toFieldKey, _toLayerLink, false);
                       },
                       onChanged: (q) {
-                        setState(() => _toId = null);
+                        setState(() {
+                          _toId = null;
+                          _toStation = null;
+                          _toFocused = true;
+                          _fromFocused = false;
+                        });
                         _fetchSuggestions(q, false);
-                        if (_toFocused) {
-                          _showOverlay(_toFieldKey, _toLayerLink, false);
-                        }
+                        _showOverlay(_toFieldKey, _toLayerLink, false);
                       },
                       dotColor: Colors.grey.shade400,
                     ),
@@ -473,6 +572,26 @@ class _TripSearchTabState extends ConsumerState<TripSearchTab> {
                       label: loc.search,
                       onTap: _doSearch,
                     ),
+
+                    if (LiveConfig.isEnabled &&
+                        _fromStation != null &&
+                        !_fromStation!.isTranstu)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Center(
+                          child: TextButton.icon(
+                            onPressed: () => showLiveBoard(
+                              context,
+                              dbStationName: _fromStation!.nameFr,
+                              displayName: _fromController.text,
+                            ),
+                            icon: const Icon(Icons.sensors, size: 18),
+                            label: Text(
+                              '${loc.live_board_button} · ${_fromController.text}',
+                            ),
+                          ),
+                        ),
+                      ),
 
                     const SizedBox(height: 10),
                     Row(
@@ -510,16 +629,10 @@ class _TripSearchTabState extends ConsumerState<TripSearchTab> {
                       const SkeletonCard(height: 100),
                       const SkeletonCard(height: 100),
                     ] else if (_results != null) ...[
-                      if (_previousTrain != null)
+                      if (_lateTrain() case final late?)
                         TripResultCard(
-                          trip: _previousTrain!,
-                          onTap: () => showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (_) =>
-                                TripDetailBottomSheet(trip: _previousTrain!),
-                          ),
+                          trip: late,
+                          onTap: () => _openTrip(late),
                         ),
                       Builder(
                         builder: (_) {
@@ -532,29 +645,24 @@ class _TripSearchTabState extends ConsumerState<TripSearchTab> {
                                   : loc.no_results,
                             );
                           }
-                          // +1 slot for native ad between index 1 and 2
-                          final hasNativeSlot = filtered.length > 2;
-                          final itemCount = filtered.length + (hasNativeSlot ? 1 : 0);
+                          // One native ad after the 2nd result (after the
+                          // last one when there are fewer).
+                          final adAt = filtered.length < 2
+                              ? filtered.length
+                              : 2;
+                          final itemCount = filtered.length + 1;
                           return ListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             padding: const EdgeInsets.all(0),
                             itemCount: itemCount,
                             itemBuilder: (context, i) {
-                              // Insert native ad between 2nd and 3rd result
-                              if (hasNativeSlot && i == 2) {
-                                return const NativeAdWidget();
-                              }
-                              final tripIndex = hasNativeSlot && i > 2 ? i - 1 : i;
+                              if (i == adAt) return const NativeAdWidget();
+                              final tripIndex = i > adAt ? i - 1 : i;
                               final trip = filtered[tripIndex];
                               return TripResultCard(
                                 trip: trip,
-                                onTap: () => showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: Colors.transparent,
-                                  builder: (_) => TripDetailBottomSheet(trip: trip),
-                                ),
+                                onTap: () => _openTrip(trip),
                               );
                             },
                           );
@@ -732,9 +840,7 @@ class _DateTimePickerSheetState extends State<_DateTimePickerSheet> {
                   ),
                   child: Icon(
                     Icons.refresh_rounded,
-                    color: isDark
-                        ? Colors.grey.shade300
-                        : Colors.grey.shade600,
+                    color: isDark ? Colors.grey.shade300 : Colors.grey.shade600,
                   ),
                 ),
               ),
@@ -908,17 +1014,11 @@ class _DateTimePickerSheetState extends State<_DateTimePickerSheet> {
                 ),
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              onPressed: () => Navigator.pop(
-                context,
-                (
-                  date: _days[_selectedDayIdx],
-                  time: TimeOfDay(
-                    hour: _selectedHour,
-                    minute: _selectedMinute,
-                  ),
-                  isDeparture: _isDeparture,
-                ),
-              ),
+              onPressed: () => Navigator.pop(context, (
+                date: _days[_selectedDayIdx],
+                time: TimeOfDay(hour: _selectedHour, minute: _selectedMinute),
+                isDeparture: _isDeparture,
+              )),
               child: Text(
                 loc.save,
                 style: const TextStyle(
@@ -1050,33 +1150,33 @@ class _StationInputField extends StatelessWidget {
       child: KeyedSubtree(
         key: fieldKey,
         child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        onTap: onTap,
-        onChanged: onChanged,
-        decoration: InputDecoration(
-          hintText: label,
-          isDense: true,
-          prefixIcon: Padding(
-            padding: const EdgeInsetsDirectional.only(start: 12, end: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: dotColor,
-                    shape: BoxShape.circle,
+          controller: controller,
+          focusNode: focusNode,
+          onTap: onTap,
+          onChanged: onChanged,
+          decoration: InputDecoration(
+            hintText: label,
+            isDense: true,
+            prefixIcon: Padding(
+              padding: const EdgeInsetsDirectional.only(start: 12, end: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: dotColor,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(Icons.location_on_outlined, size: 20),
-              ],
+                  const SizedBox(width: 8),
+                  const Icon(Icons.location_on_outlined, size: 20),
+                ],
+              ),
             ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -1207,8 +1307,7 @@ class _DateTimeRow extends StatelessWidget {
                 if (date != null)
                   Text(
                     _dateLabel(loc, locale),
-                    style:
-                        TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                   ),
               ],
             ),
@@ -1356,22 +1455,29 @@ class _SuggestionsPanel extends StatelessWidget {
           ),
         ],
       ),
-      child: ListView.builder(
-        shrinkWrap: true,
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        itemCount: stations.length,
-        itemBuilder: (context, i) {
-          final s = stations[i];
-          return ListTile(
-            dense: true,
-            leading: const Icon(Icons.train_outlined, size: 18),
-            title: Text(
-              s.localizedName(langCode),
-              style: const TextStyle(fontSize: 14),
-            ),
-            onTap: () => onSelect(s),
-          );
-        },
+      // ListTile paints ink on the nearest Material; without one here the
+      // decorated background would hide it (and trip a debug assertion).
+      child: Material(
+        type: MaterialType.transparency,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: ListView.builder(
+          shrinkWrap: true,
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          itemCount: stations.length,
+          itemBuilder: (context, i) {
+            final s = stations[i];
+            return ListTile(
+              dense: true,
+              leading: const Icon(Icons.train_outlined, size: 18),
+              title: Text(
+                s.localizedName(langCode),
+                style: const TextStyle(fontSize: 14),
+              ),
+              onTap: () => onSelect(s),
+            );
+          },
+        ),
       ),
     );
   }

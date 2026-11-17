@@ -33,38 +33,50 @@ class _ScheduleData {
   final Map<String, Map<String, String>> times;
 }
 
-final _lineScheduleProvider = FutureProvider.family<
-    _ScheduleData,
-    ({String lineId, String? reverseId, int direction})>((ref, params) async {
-  // When direction=1 and a reverse route exists, use that route's data
-  // (direction=0) so we get the real reverse-direction trips and stations.
-  final effectiveLineId =
-      (params.direction == 1 && params.reverseId != null)
-      ? params.reverseId!
-      : params.lineId;
-  final effectiveDirection =
-      (params.direction == 1 && params.reverseId != null) ? 0 : params.direction;
+final _lineScheduleProvider =
+    FutureProvider.family<
+      _ScheduleData,
+      ({String lineId, String? reverseId, int direction})
+    >((ref, params) async {
+      // When direction=1 and a reverse route exists, use that route's data
+      // (direction=0) so we get the real reverse-direction trips and stations.
+      final effectiveLineId =
+          (params.direction == 1 && params.reverseId != null)
+          ? params.reverseId!
+          : params.lineId;
+      final effectiveDirection =
+          (params.direction == 1 && params.reverseId != null)
+          ? 0
+          : params.direction;
 
-  final stationPairs = await ref
-      .read(lineRepositoryProvider)
-      .getStationsForLine(effectiveLineId, direction: effectiveDirection);
-  final stations = stationPairs.map((p) => p.station).toList();
-  final trips = await ref
-      .read(tripRepositoryProvider)
-      .getTripsForLine(effectiveLineId, direction: effectiveDirection);
+      final stationPairs = await ref
+          .read(lineRepositoryProvider)
+          .getStationsForLine(effectiveLineId, direction: effectiveDirection);
+      final stations = stationPairs.map((p) => p.station).toList();
+      final repo = ref.read(tripRepositoryProvider);
+      final trips = stations.length >= 2
+          ? await repo.getTripsServingLine(
+              effectiveLineId,
+              stations.first.id,
+              stations.last.id,
+            )
+          : await repo.getTripsForLine(
+              effectiveLineId,
+              direction: effectiveDirection,
+            );
 
-  final timesMap = <String, Map<String, String>>{};
-  for (final trip in trips) {
-    final stopTimes = await ref
-        .read(tripRepositoryProvider)
-        .getStopTimesForTrip(trip.id);
-    timesMap[trip.id] = {};
-    for (final st in stopTimes) {
-      timesMap[trip.id]![st.stationId] = minutesToHHMM(st.departureTime);
-    }
-  }
-  return _ScheduleData(stations: stations, trips: trips, times: timesMap);
-});
+      final timesMap = <String, Map<String, String>>{};
+      for (final trip in trips) {
+        final stopTimes = await ref
+            .read(tripRepositoryProvider)
+            .getStopTimesForTrip(trip.id);
+        timesMap[trip.id] = {};
+        for (final st in stopTimes) {
+          timesMap[trip.id]![st.stationId] = minutesToHHMM(st.departureTime);
+        }
+      }
+      return _ScheduleData(stations: stations, trips: trips, times: timesMap);
+    });
 
 class LinesScreen extends ConsumerWidget {
   const LinesScreen({super.key});
@@ -115,6 +127,13 @@ class LinesScreen extends ConsumerWidget {
                   LineCategory.suburbanSahel,
             )
             .toList();
+        final transtuLines = lines
+            .where(
+              (l) =>
+                  LineColors.fromLineCategory(l.lineCategory) ==
+                  LineCategory.transtu,
+            )
+            .toList();
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
@@ -148,6 +167,15 @@ class LinesScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               ...subSahelLines.map((l) => _LineCard(line: l)),
+              const SizedBox(height: 20),
+            ],
+            if (transtuLines.isNotEmpty) ...[
+              _CategoryHeader(
+                label: loc.line_transtu,
+                color: LineColors.forCategory(LineCategory.transtu),
+              ),
+              const SizedBox(height: 8),
+              ...transtuLines.map((l) => _LineCard(line: l)),
             ],
           ],
         );
@@ -394,7 +422,14 @@ class _ScheduleBottomSheetState extends ConsumerState<_ScheduleBottomSheet> {
                 error: (_, _) => const SizedBox.shrink(),
                 data: (data) {
                   final daysInfo = _getTrafficDaysSummary(data.trips);
-                  if (daysInfo.isEmpty) return const SizedBox.shrink();
+                  final isTranstu =
+                      LineColors.fromLineCategory(widget.line.lineCategory) ==
+                      LineCategory.transtu;
+                  // TRANSTU trips run daily (empty summary) but the banner
+                  // carries the "estimated times" notice, so keep it.
+                  if (daysInfo.isEmpty && !isTranstu) {
+                    return const SizedBox.shrink();
+                  }
                   return Container(
                     width: double.infinity,
                     margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -427,7 +462,13 @@ class _ScheduleBottomSheetState extends ConsumerState<_ScheduleBottomSheet> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                AppLocalizations.of(context).schedule_source,
+                                isTranstu
+                                    ? AppLocalizations.of(
+                                        context,
+                                      ).schedule_source_transtu
+                                    : AppLocalizations.of(
+                                        context,
+                                      ).schedule_source,
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: isDark
@@ -462,7 +503,8 @@ class _ScheduleBottomSheetState extends ConsumerState<_ScheduleBottomSheet> {
                   loading: () => const SizedBox.shrink(),
                   error: (_, _) => const SizedBox.shrink(),
                   data: (fwdData) {
-                    if (fwdData.stations.length < 2) return const SizedBox.shrink();
+                    if (fwdData.stations.length < 2)
+                      return const SizedBox.shrink();
                     return Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -894,20 +936,30 @@ class _ScheduleGrid extends StatelessWidget {
 
   ({String label, Color color}) _daySymbol(int serviceDays) {
     switch (serviceDays) {
-      case 0x7F: return (label: '-', color: const Color(0xFF6B7280)); // all days
-      case 0x3F: return (label: 'A', color: const Color(0xFFD97706)); // Mon–Sat
-      case 0x40: return (label: 'B', color: const Color(0xFF059669)); // Sun only
-      case 0x1F: return (label: 'C', color: const Color(0xFF7C3AED)); // Mon–Fri
-      case 0x60: return (label: 'D', color: const Color(0xFFDC2626)); // Sat–Sun
-      case 0x5F: return (label: 'E', color: const Color(0xFF2563EB)); // except Sat
-      case 0x15: return (label: 'F', color: const Color(0xFF0891B2)); // Mon, Wed, Fri
-      case 0x4A: return (label: 'G', color: const Color(0xFFDB2777)); // Tue, Thu, Sun
-      case 0: return (label: '?', color: Colors.grey);
+      case 0x7F:
+        return (label: '-', color: const Color(0xFF6B7280)); // all days
+      case 0x3F:
+        return (label: 'A', color: const Color(0xFFD97706)); // Mon–Sat
+      case 0x40:
+        return (label: 'B', color: const Color(0xFF059669)); // Sun only
+      case 0x1F:
+        return (label: 'C', color: const Color(0xFF7C3AED)); // Mon–Fri
+      case 0x60:
+        return (label: 'D', color: const Color(0xFFDC2626)); // Sat–Sun
+      case 0x5F:
+        return (label: 'E', color: const Color(0xFF2563EB)); // except Sat
+      case 0x15:
+        return (label: 'F', color: const Color(0xFF0891B2)); // Mon, Wed, Fri
+      case 0x4A:
+        return (label: 'G', color: const Color(0xFFDB2777)); // Tue, Thu, Sun
+      case 0:
+        return (label: '?', color: Colors.grey);
     }
     // Generic fallback for non-standard bitmasks
     final hasWeekdays = serviceDays & 0x3F != 0;
     final hasSunday = serviceDays & 0x40 != 0;
-    if (hasWeekdays && hasSunday) return (label: '-', color: const Color(0xFF6B7280));
+    if (hasWeekdays && hasSunday)
+      return (label: '-', color: const Color(0xFF6B7280));
     if (hasWeekdays) return (label: 'A', color: const Color(0xFFD97706));
     if (hasSunday) return (label: 'B', color: const Color(0xFF059669));
     return (label: '?', color: Colors.grey);
@@ -1052,32 +1104,90 @@ class _SheetFooter extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Expanded(child: _LegendItem(symbol: '-', color: const Color(0xFF6B7280), label: loc.schedule_every_day)),
-                      Expanded(child: _LegendItem(symbol: 'A', color: const Color(0xFFD97706), label: loc.schedule_except_holidays)),
-                      Expanded(child: _LegendItem(symbol: 'B', color: const Color(0xFF059669), label: loc.schedule_sun_holidays)),
+                      Expanded(
+                        child: _LegendItem(
+                          symbol: '-',
+                          color: const Color(0xFF6B7280),
+                          label: loc.schedule_every_day,
+                        ),
+                      ),
+                      Expanded(
+                        child: _LegendItem(
+                          symbol: 'A',
+                          color: const Color(0xFFD97706),
+                          label: loc.schedule_except_holidays,
+                        ),
+                      ),
+                      Expanded(
+                        child: _LegendItem(
+                          symbol: 'B',
+                          color: const Color(0xFF059669),
+                          label: loc.schedule_sun_holidays,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Expanded(child: _LegendItem(symbol: 'C', color: const Color(0xFF7C3AED), label: loc.schedule_special_depart)),
-                      Expanded(child: _LegendItem(symbol: 'D', color: const Color(0xFFDC2626), label: loc.schedule_sat_sun_holidays)),
-                      Expanded(child: _LegendItem(symbol: 'E', color: const Color(0xFF2563EB), label: loc.days_except_saturday)),
+                      Expanded(
+                        child: _LegendItem(
+                          symbol: 'C',
+                          color: const Color(0xFF7C3AED),
+                          label: loc.schedule_special_depart,
+                        ),
+                      ),
+                      Expanded(
+                        child: _LegendItem(
+                          symbol: 'D',
+                          color: const Color(0xFFDC2626),
+                          label: loc.schedule_sat_sun_holidays,
+                        ),
+                      ),
+                      Expanded(
+                        child: _LegendItem(
+                          symbol: 'E',
+                          color: const Color(0xFF2563EB),
+                          label: loc.days_except_saturday,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Expanded(child: _LegendItem(symbol: 'F', color: const Color(0xFF0891B2), label: loc.days_mon_wed_fri)),
-                      Expanded(child: _LegendItem(symbol: 'G', color: const Color(0xFFDB2777), label: loc.days_tue_thu_sun)),
+                      Expanded(
+                        child: _LegendItem(
+                          symbol: 'F',
+                          color: const Color(0xFF0891B2),
+                          label: loc.days_mon_wed_fri,
+                        ),
+                      ),
+                      Expanded(
+                        child: _LegendItem(
+                          symbol: 'G',
+                          color: const Color(0xFFDB2777),
+                          label: loc.days_tue_thu_sun,
+                        ),
+                      ),
                       const Expanded(child: SizedBox.shrink()),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Expanded(child: _StationLegendItem(filled: true, label: loc.schedule_main_station)),
-                      Expanded(child: _StationLegendItem(filled: false, label: loc.schedule_secondary_station)),
+                      Expanded(
+                        child: _StationLegendItem(
+                          filled: true,
+                          label: loc.schedule_main_station,
+                        ),
+                      ),
+                      Expanded(
+                        child: _StationLegendItem(
+                          filled: false,
+                          label: loc.schedule_secondary_station,
+                        ),
+                      ),
                       const Expanded(child: SizedBox.shrink()),
                     ],
                   ),

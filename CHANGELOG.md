@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- TRANSTU light metro (lines 1–6) and TGM in a separate `transtu.db`, attached to `sncft.db` at open (`DatabaseHelper.attachTranstu`), with its own OTA entry. Times are estimated from TRANSTU's official first/last departures and peak headway (winter 2026-2027) and labelled as such.
+
+### Fixed
+- Trip duration for trains running past midnight (was shown as a negative "-23h…").
+
 ### Changed
 - Migrated license from BSL 1.1 to MIT License (Copyright (c) 2025 mnik-creator)
 

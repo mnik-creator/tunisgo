@@ -1,0 +1,12 @@
+{
+  "sncft": {
+    "version": 6,
+    "schema": 1,
+    "source": "../../assets/initial/sncft.db"
+  },
+  "transtu": {
+    "version": 1,
+    "schema": 1,
+    "source": "../../assets/initial/transtu.db"
+  }
+}

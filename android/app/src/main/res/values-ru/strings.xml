@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_title">Мои поезда</string>
+    <string name="widget_empty">Добавьте поезд в избранное, чтобы видеть его здесь</string>
+    <string name="widget_description">Ближайший избранный поезд</string>
+</resources>

@@ -23,16 +23,6 @@ final _resultsProvider =
         params.toId,
         afterMinutes: params.afterMinutes,
       );
-      if (params.afterMinutes != null) {
-        final prev = await repo.getPreviousTrain(
-          params.fromId,
-          params.toId,
-          params.afterMinutes!,
-        );
-        if (prev != null && params.afterMinutes! - prev.departureTime <= 15) {
-          return [prev.copyWith(mayArriveLate: true), ...trips];
-        }
-      }
       return trips;
     });
 
@@ -132,14 +122,15 @@ class _ResultsScreenState extends ConsumerState<ResultsScreen> {
                   );
                 }
                 final displayedTrips = trips.take(_displayedCount).toList();
-                final hasNativeSlot = displayedTrips.length > 2;
-                final itemCount = displayedTrips.length + (hasNativeSlot ? 1 : 0);
+                // One native ad after the 2nd result (after the last if fewer).
+                final adAt = displayedTrips.length < 2 ? displayedTrips.length : 2;
+                final itemCount = displayedTrips.length + 1;
                 return ListView.builder(
                   controller: _scrollController,
                   itemCount: itemCount,
                   itemBuilder: (context, i) {
-                    if (hasNativeSlot && i == 2) return const NativeAdWidget();
-                    final tripIndex = hasNativeSlot && i > 2 ? i - 1 : i;
+                    if (i == adAt) return const NativeAdWidget();
+                    final tripIndex = i > adAt ? i - 1 : i;
                     final trip = displayedTrips[tripIndex];
                     return TripResultCard(
                       trip: trip,

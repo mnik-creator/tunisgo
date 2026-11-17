@@ -1,0 +1,4 @@
+• New: TRANSTU light metro (lines 1–6) and TGM, in search and Lines
+• Metro and TGM times are estimated from the first/last departures and frequency TRANSTU publishes
+• Fix: duration of trains running past midnight
+• Fix: the "Check for updates" button no longer hangs

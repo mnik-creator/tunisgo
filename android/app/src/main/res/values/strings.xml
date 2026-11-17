@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_title">My trains</string>
+    <string name="widget_empty">Add a train to favourites to see it here</string>
+    <string name="widget_description">Next favourite train</string>
+</resources>

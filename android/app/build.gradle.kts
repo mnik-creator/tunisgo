@@ -5,9 +5,6 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-
-    // Add the Google services Gradle plugin
-    id("com.google.gms.google-services")
 }
 
 val keyProperties = Properties()
@@ -34,6 +31,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["appLabel"] = "TunisGO"
     }
 
     signingConfigs {
@@ -46,8 +44,18 @@ android {
     }
 
     buildTypes {
+        // Debug builds install next to the Play Store app (different id and label),
+        // so testing on a phone over adb never touches the user's real install.
+        debug {
+            applicationIdSuffix = ".debug"
+            manifestPlaceholders["appLabel"] = "TunisGO Dev"
+        }
         release {
             signingConfig = signingConfigs.getByName("release")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

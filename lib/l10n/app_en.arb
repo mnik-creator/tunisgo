@@ -12,7 +12,7 @@
   "no_results": "No results found",
   "no_connection_found": "No connection found between these two stations",
   "offline_mode": "Offline mode",
-  "source_official": "Data: SNCFT (sncft.com.tn)",
+  "source_official": "Data: SNCFT (sncft.com.tn), TRANSTU (transtu.tn)",
   "search": "Search",
   "settings": "Settings",
   "favorites": "Favorites",
@@ -29,7 +29,7 @@
   "all_departures_today": "All departures today",
   "train_number": "Train no.",
   "duration": "Duration",
-  "disclaimer": "Tunis GO is not an official SNCFT application.\nData sourced from official timetables published on sncft.com.tn.",
+  "disclaimer": "Tunis GO is not an official SNCFT or TRANSTU application.\nData sourced from official timetables published on sncft.com.tn and transtu.tn. Metro and TGM times are estimated from the published first and last departures and frequency.",
   "app_version": "App version",
   "data_source": "Data source",
   "select_time": "Select time",
@@ -52,15 +52,17 @@
   "line_main": "MAIN LINES",
   "line_suburban_tunis": "TUNIS SUBURBAN",
   "line_suburban_sahel": "SAHEL SUBURBAN",
+  "line_transtu": "METRO AND TGM (TRANSTU)",
+  "schedule_estimated": "Estimated times: TRANSTU only publishes first and last departures and the frequency",
   "see_schedule": "See schedule",
   "account_tab_title": "Account",
   "preferences": "PREFERENCES",
   "theme_system": "System",
   "my_favorites": "MY FAVORITES",
-  "see_favorites": "See my favorites",
   "about": "ABOUT",
   "close": "Close",
   "schedule_source": "SNCFT timetables",
+  "schedule_source_transtu": "Estimated times · TRANSTU (official first/last departures and frequency)",
   "schedule_no_trains": "No trains available",
   "schedule_col_train": "Train №",
   "schedule_col_days": "Days",
@@ -147,7 +149,65 @@
   "live_on_time": "On time",
   "live_cancelled": "Cancelled",
   "live_departed": "Departed",
+  "live_running_late": "Running {minutes} min late · expected at {time}",
+  "live_board_button": "Live departures",
   "days_except_saturday": "Except Sat.",
   "days_mon_wed_fri": "Mon, Wed, Fri",
-  "days_tue_thu_sun": "Tue, Thu, Sun"
+  "days_tue_thu_sun": "Tue, Thu, Sun",
+  "live_cancelled_header": "Train cancelled · SNCFT",
+  "position_live": "Live position · SNCFT",
+  "position_by_schedule": "Estimated from the timetable (not yet reported by SNCFT)",
+  "stop_only_on": "Stops only: {days}",
+  "ad_label": "Ad",
+  "ad_privacy_options": "Ad privacy choices",
+  "notify_pick_title": "When should we remind you?",
+  "notify_minutes_before": "{minutes} min before departure",
+  "notify_pick_time": "Pick a time",
+  "notification_scheduled_at": "Reminder set for {time}",
+  "notification_time_passed": "That time has already passed",
+  "notify_time_after_departure": "Pick a time before departure",
+  "favorites_limit_reached": "You can save up to 5 favorite trains",
+  "notifications_limit_reached": "Up to 5 reminders — remove one in Settings",
+  "my_reminders": "MY REMINDERS",
+  "no_reminders": "No reminders yet. Tap “Notify me” on a trip.",
+  "reminder_at": "Reminder at {time}",
+  "remove": "Remove",
+  "slot_limit_title": "Limit reached",
+  "slot_offer_favorites": "Watch a short ad to save 1 more favorite.",
+  "slot_offer_reminders": "Watch a short ad to set 1 more reminder.",
+  "slot_offer_rules": "Free: 1. Each ad adds 1 slot (up to 5). Extra slots last 7 days, then the limit goes back to 1.",
+  "slot_watch_ad": "Watch ad",
+  "slot_ad_unavailable": "No ad available right now. Please try again later.",
+  "slot_earned": "+1 slot until {date}",
+  "slot_usage": "{used} / {limit}",
+  "slot_bonus_until": "extra slots until {date}",
+  "slot_get_more": "+1 slot",
+  "share": "Share",
+  "share_app": "Share TunisGO",
+  "share_app_text": "TunisGO — train times in Tunisia with live delays. Free: https://tunisgo.pages.dev",
+  "share_trip_text": "🚆 Train {train}: {from} {dep} → {to} {arr}",
+  "share_trip_footer": "Live delays in TunisGO: https://tunisgo.pages.dev",
+  "@share_trip_text": {
+    "placeholders": {
+      "train": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      },
+      "dep": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      },
+      "arr": {
+        "type": "String"
+      }
+    }
+  },
+  "widget_title": "My trains",
+  "widget_empty": "Add a train to favourites to see it here",
+  "widget_tomorrow": "tomorrow",
+  "widget_day_names": "Mon,Tue,Wed,Thu,Fri,Sat,Sun"
 }

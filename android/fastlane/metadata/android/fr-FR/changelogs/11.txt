@@ -1,0 +1,3 @@
+• Rappels de départ : le bouton « Me notifier » fonctionne de nouveau sur Android
+• Nouveau : partagez un train (horaires et gares) ou l'appli avec vos proches
+• Lignes : la fiche horaire affiche tous les trains de la ligne, y compris ceux qui continuent au-delà

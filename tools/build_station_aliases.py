@@ -35,9 +35,9 @@ UA = "Mozilla/5.0 (compatible; tunisgo-alias-builder/1.0)"
 
 # Names the feed uses that the DB spells differently, verified by hand.
 MANUAL_ALIASES = {
-    "LYCEE EZZAHRA": "Ezzahra Lycée",
+    "LYCEE EZZAHRA": "Lycée Ezzahra",
     "LA FACULTE MONASTIR": "La Faculte",
-    "TEBOULBA ZONE INDUSTRIELLE": "Teboulba Zi",
+    "TEBOULBA ZONE INDUSTRIELLE": "Teboulba Zone Industrielle",
     "SOUSSE BAB JEDID": "Sousse Bab Jdid",
 }
 

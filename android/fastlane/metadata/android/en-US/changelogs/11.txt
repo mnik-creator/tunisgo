@@ -1,0 +1,3 @@
+• Departure reminders: "Notify me" works again on Android
+• New: share a train (times and stations) or the app with friends
+• Lines: the timetable now lists every train on the line, including those running further

@@ -9,6 +9,8 @@
 		<false/>
 	</dict>
 	<!-- AdMob App ID — required by google_mobile_ads to avoid crash on launch. -->
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Your choice lets TunisGO show more relevant ads, which keep the app free.</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-5314813801565109~7533411286</string>
 	<!-- SKAdNetwork for iOS 14+ attribution (required by google_mobile_ads) -->

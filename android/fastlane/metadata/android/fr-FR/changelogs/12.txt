@@ -1,0 +1,4 @@
+• Nouveau : métro léger (lignes 1 à 6) et TGM de la TRANSTU, dans la recherche et dans Lignes
+• Horaires du métro et du TGM estimés à partir des premiers/derniers départs et de la fréquence publiés par la TRANSTU
+• Correction : durée des trains qui passent minuit
+• Correction : le bouton « Vérifier les mises à jour » ne restait plus bloqué

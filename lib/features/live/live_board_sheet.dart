@@ -3,11 +3,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/models/station.dart';
+import '../../core/repositories/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'live_board.dart';
 import 'live_models.dart';
 import 'live_providers.dart';
+import 'station_aliases.dart';
+
+/// Bundled stations keyed by normalised French name, to show live stop names
+/// (French, as SNCFT sends them) in the rider's language.
+final _stationsByNameProvider = FutureProvider<Map<String, Station>>((ref) async {
+  final stations = await ref.read(stationRepositoryProvider).getAllStations();
+  return {for (final s in stations) normalizeStationName(s.nameFr): s};
+});
+
+/// [stop]'s name in [lang]: SNCFT's Arabic for `ar`, otherwise the bundled
+/// station's translation; the raw feed name when the stop is unknown.
+String liveStopName(LiveStopTime stop, String lang, Map<String, Station>? byName) {
+  if (lang == 'ar' && stop.nameAr.isNotEmpty) return stop.nameAr;
+  final resolved = resolveStopName(stop.name);
+  final station = resolved == null ? null : byName?[normalizeStationName(resolved)];
+  return station?.localizedName(lang) ?? stop.name;
+}
 
 /// Opens the live board for one station.
 Future<void> showLiveBoard(
@@ -42,6 +61,8 @@ class LiveBoardSheet extends ConsumerWidget {
     final loc = AppLocalizations.of(context);
     final feedAsync = ref.watch(liveFeedProvider);
     final feed = ref.watch(freshLiveFeedProvider);
+    final byName = ref.watch(_stationsByNameProvider).valueOrNull;
+    String stopName(LiveStopTime stop) => liveStopName(stop, loc.localeName, byName);
 
     return DraggableScrollableSheet(
       expand: false,
@@ -65,7 +86,7 @@ class LiveBoardSheet extends ConsumerWidget {
                   controller: scrollController,
                   itemCount: rows.length,
                   separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, i) => _Row(call: rows[i], loc: loc),
+                  itemBuilder: (context, i) => _Row(call: rows[i], loc: loc, stopName: stopName),
                 );
         }
 
@@ -118,10 +139,20 @@ String _tunisHhmm(DateTime utc) {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.call, required this.loc});
+  const _Row({required this.call, required this.loc, required this.stopName});
 
   final LiveCall call;
   final AppLocalizations loc;
+  final String Function(LiveStopTime stop) stopName;
+
+  /// "Gabès – Tunis" in the rider's language; SNCFT's own route name as a
+  /// fallback.
+  String get _route {
+    final train = call.train;
+    if (loc.localeName == 'ar' && train.routeNameAr.isNotEmpty) return train.routeNameAr;
+    if (train.stops.length < 2) return train.routeName;
+    return '${stopName(train.stops.first)} – ${stopName(train.stops.last)}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -157,12 +188,13 @@ class _Row extends StatelessWidget {
         ),
       ),
       title: Text(
-        '${call.train.number.replaceFirst(RegExp(r'^0+'), '')} → ${call.terminus}',
+        '${call.train.number.replaceFirst(RegExp(r'^0+'), '')} → '
+        '${call.train.stops.isEmpty ? call.terminus : stopName(call.train.stops.last)}',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
       subtitle: Text(
-        call.train.routeName,
+        _route,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(color: Colors.grey.shade600, fontSize: 12),

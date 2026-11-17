@@ -1,0 +1,26 @@
+# graphify: keep generated, vendored and binary-heavy folders out of the knowledge graph
+build/
+cloudflare/site/public/
+cloudflare/live-worker/node_modules/
+cloudflare/live-worker/public/
+ios/Pods/
+ios/Runner/Assets.xcassets/
+android/app/src/main/res/
+android/fastlane/metadata/
+macos/
+linux/
+windows/
+web/
+.dart_tool/
+lib/l10n/app_localizations*.dart
+marketing/screenshots/
+marketing/qr/*.png
+assets/
+data/timetables/**/*.pdf
+graphify-out/
+brain/
+*.g.dart
+*.freezed.dart
+docs/privacy-policy.html
+marketing/qr/
+app-ads.txt

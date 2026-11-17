@@ -65,6 +65,18 @@ void main() {
       expect(feed.isStale(const Duration(minutes: 5), now: at.add(const Duration(minutes: 6))), isTrue);
       expect(LiveFeed.fromJson({}).isStale(const Duration(minutes: 5)), isTrue);
     });
+
+    test('quiet-night file stays fresh until its announced next poll', () {
+      final feed = LiveFeed.fromJson({
+        'generatedAt': '2026-11-12T00:00:00Z',
+        'nextAt': '2026-11-12T00:15:00Z',
+      });
+      final at = DateTime.utc(2026, 11, 12);
+      const max = Duration(minutes: 5);
+      expect(feed.isStale(max, now: at.add(const Duration(minutes: 14))), isFalse);
+      expect(feed.isStale(max, now: at.add(const Duration(minutes: 18))), isFalse);
+      expect(feed.isStale(max, now: at.add(const Duration(minutes: 20))), isTrue);
+    });
   });
 
   group('clock', () {
@@ -84,6 +96,12 @@ void main() {
   });
 
   group('train number keys', () {
+    test('AA TA CCC codes (Bizerte line)', () {
+      expect(liveTrainKey('01TA004'), '1-4');
+      expect(liveTrainKey('01TA004'), timetableTrainKey('mainlines_1/4'));
+      expect(liveTrainKey('00TA014'), '14');
+    });
+
     test('live and timetable formats meet', () {
       expect(liveTrainKey('205'), timetableTrainKey('ligne_a_tunis_erriadh_205'));
       expect(liveTrainKey('0005076'), timetableTrainKey('mainlines_5/76'));
@@ -102,8 +120,9 @@ void main() {
 
   group('aliases', () {
     test('feed spellings resolve to DB names', () {
-      expect(resolveStopName('Jebel Jelloud'), 'Djebal Jelloud');
+      expect(resolveStopName('Jebel Jelloud'), 'Jebel Jelloud');
       expect(resolveStopName('SOUSSE BAB JEDID'), 'Sousse Bab Jdid');
+      expect(resolveStopName('SOUSSE'), 'Sousse');
       expect(isSameStation('TUNIS VILLE', 'Tunis'), isTrue);
     });
 
@@ -135,7 +154,7 @@ void main() {
     test('matches by number, station and time', () {
       final call = matchTimetableRow(index,
           tripCode: 'ligne_a_tunis_erriadh_205',
-          dbStationName: 'Djebal Jelloud',
+          dbStationName: 'Jebel Jelloud',
           plannedHhmm: '07:05');
       expect(call, isNotNull);
       expect(call!.delayMinutes, 6);
@@ -157,7 +176,7 @@ void main() {
       expect(
         matchTimetableRow(index,
             tripCode: 'ligne_a_tunis_erriadh_205',
-            dbStationName: 'Djebal Jelloud',
+            dbStationName: 'Jebel Jelloud',
             plannedHhmm: '18:05'),
         isNull,
       );
@@ -201,6 +220,153 @@ void main() {
       expect(rows.map((r) => r.train.id), ['soon', 'late']);
       expect(rows.last.delayMinutes, 8);
       expect(rows.last.terminus, 'Erriadh');
+    });
+  });
+
+  group('late previous train', () {
+    final stops = [
+      {'n': 'Tunis Ville', 'pd': '11:00'},
+      {'n': 'Ez-Zahra', 'pa': '11:29'},
+    ];
+    LiveCall? late(Map<String, dynamic> train, {int ref = 11 * 60 + 8}) =>
+        lateDeparture(
+          indexByTrainKey(_feed([train])),
+          tripCode: 'ligne_a_tunis_erriadh_159',
+          dbStationName: 'Tunis',
+          plannedHhmm: '11:00',
+          refMinutes: ref,
+        );
+
+    test('shown when running late and still to come', () {
+      final call = late(_train('1', '159', delay: 12, stops: stops));
+      expect(call?.delayMinutes, 12);
+      expect(call?.eta, '11:12');
+    });
+
+    test('hidden when the delay is already over by the search time', () {
+      expect(late(_train('1', '159', delay: 5, stops: stops)), isNull);
+    });
+
+    test('hidden without live evidence of a delay', () {
+      expect(late(_train('1', '159', stops: stops)), isNull);
+      expect(late(_train('1', '159', status: 'NOT_STARTED', delay: 12, stops: stops)), isNull);
+    });
+
+    test('hidden once departed or cancelled', () {
+      expect(
+        late(_train('1', '159', delay: 12, stops: [
+          {'n': 'Tunis Ville', 'pd': '11:00', 'ad': '11:12'},
+          {'n': 'Ez-Zahra', 'pa': '11:29'},
+        ])),
+        isNull,
+      );
+      expect(late(_train('1', '159', status: 'CANCELLED', delay: 12, stops: stops)), isNull);
+    });
+  });
+
+  group('train position', () {
+    const names = ['Tunis', 'Rades', 'Ez-Zahra', 'Erriadh'];
+    LiveTrain train({String status = 'EN_ROUTE', int delay = 0, List<Map<String, dynamic>>? stops}) =>
+        _feed([
+          _train('1', '159', status: status, delay: delay, stops: stops ??
+              [
+                {'n': 'Tunis Ville', 'pd': '11:00', 'ad': '11:02'},
+                {'n': 'Rades', 'pa': '11:10', 'pd': '11:11'},
+                {'n': 'Ez-Zahra', 'pa': '11:20', 'pd': '11:21'},
+                {'n': 'Erriadh', 'pa': '11:30'},
+              ]),
+        ]).trains.single;
+    TrainPosition? at(LiveTrain t, String hhmm) =>
+        positionAlongStops(t, names, nowMinutes: minutesOfDay(hhmm)!);
+
+    test('between stops after departing, estimated from plan', () {
+      final p = at(train(), '11:05');
+      expect(p?.lastPassed, 0);
+      expect(p?.atStation, isFalse);
+    });
+
+    test('at a stop between its arrival and departure', () {
+      final p = at(train(), '11:10');
+      expect(p?.lastPassed, 1);
+      expect(p?.atStation, isTrue);
+    });
+
+    test('delay shifts the estimate', () {
+      final p = at(train(delay: 10), '11:15');
+      expect(p?.lastPassed, 0);
+      expect(p?.atStation, isFalse);
+    });
+
+    test('at the terminus or when finished', () {
+      expect(at(train(), '11:40')?.atStation, isTrue);
+      expect(at(train(), '11:40')?.lastPassed, 3);
+      expect(at(train(status: 'TERMINATED'), '09:00')?.lastPassed, 3);
+    });
+
+    test('none when not started or cancelled', () {
+      expect(at(train(status: 'NOT_STARTED'), '11:05'), isNull);
+      expect(at(train(status: 'CANCELLED'), '11:05'), isNull);
+    });
+  });
+
+  group('big delays', () {
+    test('a 67-minute delay still matches: tolerance compares planned times', () {
+      final index = indexByTrainKey(_feed([
+        _train('g', '205', delay: 67, stops: [
+          {'n': 'Tunis Ville', 'pd': '21:15', 'ad': '22:22'},
+          {'n': 'Jebel Jelloud', 'pd': '21:22'},
+          {'n': 'Erriadh', 'pa': '22:00'},
+        ]),
+      ]));
+      final call = matchTimetableRow(index,
+          tripCode: 'ligne_a_tunis_erriadh_205',
+          dbStationName: 'Jebel Jelloud',
+          plannedHhmm: '21:22');
+      expect(call, isNotNull);
+      expect(call!.delayMinutes, 67);
+      expect(call.eta, '22:29');
+    });
+  });
+
+  group('position by schedule', () {
+    // Tunis 07:15 → Jebel Jelloud 07:26 → Megrine Riadh 07:28/07:29 → Megrine 07:30
+    const arr = [0, 7 * 60 + 26, 7 * 60 + 28, 7 * 60 + 30];
+    const dep = [7 * 60 + 15, 7 * 60 + 26, 7 * 60 + 29, 7 * 60 + 30];
+
+    test('nothing before the first departure', () {
+      expect(positionBySchedule(arr, dep, nowMinutes: 7 * 60 + 10), isNull);
+    });
+
+    test('between stops', () {
+      final p = positionBySchedule(arr, dep, nowMinutes: 7 * 60 + 27);
+      expect(p?.lastPassed, 1);
+      expect(p?.atStation, isFalse);
+    });
+
+    test('dwelling at a stop', () {
+      final p = positionBySchedule(arr, dep, nowMinutes: 7 * 60 + 28);
+      expect(p?.lastPassed, 2);
+      expect(p?.atStation, isTrue);
+    });
+
+    test('at the terminus afterwards', () {
+      final p = positionBySchedule(arr, dep, nowMinutes: 9 * 60);
+      expect(p?.lastPassed, 3);
+      expect(p?.atStation, isTrue);
+    });
+
+    test('delay shifts it back', () {
+      final p = positionBySchedule(arr, dep, nowMinutes: 7 * 60 + 27, delayMinutes: 10);
+      expect(p?.lastPassed, 0);
+      expect(p?.atStation, isFalse);
+    });
+
+    test('overnight train after midnight', () {
+      const a = [0, 24 * 60 + 30];
+      const d = [23 * 60 + 50, 24 * 60 + 30];
+      final p = positionBySchedule(a, d, nowMinutes: 10);
+      expect(p?.lastPassed, 0);
+      expect(p?.atStation, isFalse);
     });
   });
 }

@@ -12,163 +12,178 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../config/insforge_config.dart';
+import '../config/worker_config.dart';
 
-/// Manifest-based OTA database updater.
+/// Version (on the manifest's scale) of each database bundled in
+/// `assets/initial/`. Bump it whenever the bundled file is rebuilt: installs
+/// holding an older copy then switch to the bundled one on the next start,
+/// and a remote file only replaces it when the manifest version is higher.
+/// Keep in step with `cloudflare/live-worker/db.json`.
+/// `transtu` = métro léger + TGM (tools/build_transtu_db.py), attached to
+/// sncft.db by DatabaseHelper.attachTranstu.
+const Map<String, int> kBundledDbVersions = {'sncft': 6, 'transtu': 1};
+
+/// Highest database schema this build can read. A manifest entry with a
+/// higher `schema` is skipped, so old app builds keep a file they understand.
+const int kSupportedDbSchema = 1;
+
+enum DbUpdateStatus {
+  upToDate,
+
+  /// A newer file was downloaded and verified; it is swapped in the next time
+  /// the database is opened ([DatabaseUpdater.ensureDatabase]).
+  updated,
+  noConnection,
+  serverError,
+  checksumMismatch,
+  unknown,
+}
+
+/// Timetable databases: bundled copy plus over-the-air updates from the
+/// TunisGO Worker (`/db/manifest.json`, see `cloudflare/live-worker`).
 ///
-/// Flow for each operator on every cold start:
-///   1. Bootstrap from `assets/initial/{operator}.db` if no local file exists.
-///   2. Fetch `files/manifest.json` from InsForge Storage.
-///   3. If offline → return existing local path (offline-first).
-///   4. Compare manifest version with locally installed version.
-///   5. Download versioned `.db` into a `.tmp` file if newer.
-///   6. Verify SHA-256; on mismatch delete `.tmp` and throw.
-///   7. Atomic rename `.tmp` → final path; persist version in SharedPreferences.
+/// Opening never waits for the network. [checkForUpdate] downloads a newer
+/// file next to the live one (`{operator}.db.next`), verifies its SHA-256, and
+/// [ensureDatabase] swaps it in before the next open.
 ///
-/// All operator databases are stored under:
-///   `{ApplicationDocumentsDirectory}/operator_dbs/{operator}.db`
+/// Files live under `{ApplicationDocumentsDirectory}/operator_dbs/`.
 class DatabaseUpdater {
-  static const String _prefKeyPrefix = 'db_version_';
+  static const String _versionKey = 'db_version_';
+  static const String _pendingKey = 'db_pending_version_';
 
-  /// Guarantees an up-to-date `.db` file on disk for [operator].
-  /// Returns the absolute path suitable for passing to `openDatabase()`.
+  static final Map<String, Future<DbUpdateStatus>> _inFlight = {};
+
+  /// Path of an up-to-date local database for [operator], ready for
+  /// `openDatabase()`. Call only while the database is closed.
   Future<String> ensureDatabase(String operator) async {
     final dir = await _dbDirectory();
     final localPath = p.join(dir.path, '$operator.db');
     final prefs = await SharedPreferences.getInstance();
-    final installedVersion = prefs.getInt('$_prefKeyPrefix$operator') ?? 0;
+    final bundled = kBundledDbVersions[operator] ?? 1;
 
-    // 1. Bootstrap from bundled asset if local file is absent.
-    if (!File(localPath).existsSync()) {
-      await _bootstrapFromAssets(operator, localPath, prefs);
-    }
-
-    // 2. Fetch manifest — null means offline or server unreachable.
-    final manifest = await _fetchManifest();
-    if (manifest == null) {
-      if (!File(localPath).existsSync()) {
-        throw Exception(
-          '[DatabaseUpdater] No network and no local DB for "$operator".',
-        );
+    // 1. A verified download from a previous run.
+    final pending = prefs.getInt('$_pendingKey$operator');
+    final nextPath = '$localPath.next';
+    if (pending != null) {
+      if (pending > bundled && File(nextPath).existsSync()) {
+        _replaceDbFile(nextPath, localPath);
+        await prefs.setInt('$_versionKey$operator', pending);
+        _log('"$operator" switched to downloaded v$pending.');
+      } else if (File(nextPath).existsSync()) {
+        File(nextPath).deleteSync();
       }
-      if (kDebugMode) {
-        debugPrint('[DatabaseUpdater] Offline — using local "$operator" DB.');
-      }
-      return localPath;
+      await prefs.remove('$_pendingKey$operator');
     }
 
-    // 3. Locate operator entry in manifest.
-    final entry = manifest['databases']?[operator] as Map<String, dynamic>?;
-    if (entry == null) {
-      throw Exception(
-        '[DatabaseUpdater] Operator "$operator" not found in manifest.',
-      );
-    }
-
-    final remoteVersion = entry['version'] as int;
-
-    // 4. Already up-to-date?
-    if (installedVersion >= remoteVersion && File(localPath).existsSync()) {
-      if (kDebugMode) {
-        debugPrint(
-          '[DatabaseUpdater] "$operator" is current (v$installedVersion).',
-        );
-      }
-      return localPath;
-    }
-
-    if (kDebugMode) {
-      debugPrint(
-        '[DatabaseUpdater] Updating "$operator": '
-        'v$installedVersion → v$remoteVersion',
-      );
-    }
-
-    // 5. Download into a temp file.
-    final bucket = entry['bucket'] as String;
-    final fileKey = entry['file'] as String;
-    final expectedHash = entry['sha256'] as String;
-    final tmpPath = '$localPath.tmp';
-
-    try {
-      await _downloadFile(bucket, fileKey, tmpPath);
-    } catch (e) {
-      if (File(tmpPath).existsSync()) File(tmpPath).deleteSync();
-      // Graceful fallback: use existing local DB rather than crashing.
-      if (File(localPath).existsSync()) {
-        if (kDebugMode) {
-          debugPrint('[DatabaseUpdater] Download failed — using local DB: $e');
-        }
-        return localPath;
-      }
-      rethrow;
-    }
-
-    // 6. Verify SHA-256.
-    final actualHash = await _sha256(tmpPath);
-    if (actualHash != expectedHash) {
-      File(tmpPath).deleteSync();
-      throw Exception(
-        '[DatabaseUpdater] SHA-256 mismatch for "$operator" — '
-        'expected $expectedHash, got $actualHash.',
-      );
-    }
-
-    // 7. Atomic replace.
-    if (File(localPath).existsSync()) File(localPath).deleteSync();
-    File(tmpPath).renameSync(localPath);
-    await prefs.setInt('$_prefKeyPrefix$operator', remoteVersion);
-
-    if (kDebugMode) {
-      debugPrint('[DatabaseUpdater] "$operator" updated to v$remoteVersion.');
+    // 2. Bundled asset when nothing newer is installed.
+    if (!File(localPath).existsSync() ||
+        (prefs.getInt('$_versionKey$operator') ?? 0) < bundled) {
+      await _bootstrapFromAssets(operator, localPath, prefs, bundled);
     }
     return localPath;
+  }
+
+  /// Installed (or bundled) version of [operator].
+  static Future<int> installedVersion(String operator) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('$_versionKey$operator') ?? kBundledDbVersions[operator] ?? 0;
+  }
+
+  /// Downloads a newer [operator] database if the manifest has one. Safe to
+  /// call concurrently: callers share one check.
+  Future<DbUpdateStatus> checkForUpdate(
+    String operator, {
+    void Function(double progress)? onProgress,
+  }) {
+    // Block body: an arrow would return the removed future itself, and
+    // whenComplete waits on a returned future, so the call never completed.
+    return _inFlight[operator] ??= _check(operator, onProgress)
+        .whenComplete(() {
+      _inFlight.remove(operator);
+    });
+  }
+
+  Future<DbUpdateStatus> _check(
+    String operator,
+    void Function(double progress)? onProgress,
+  ) async {
+    const manifestUrl = WorkerConfig.dbManifestUrl;
+    if (manifestUrl == '') return DbUpdateStatus.upToDate;
+    final dio = Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 10),
+    ));
+    try {
+      final r = await dio.get<dynamic>(manifestUrl);
+      final data = r.data;
+      final manifest = data is Map<String, dynamic>
+          ? data
+          : jsonDecode(data as String) as Map<String, dynamic>;
+      final entry = (manifest['databases'] as Map<String, dynamic>?)?[operator];
+      if (entry is! Map<String, dynamic>) {
+        // E.g. a new operator before its first upload, or an edge-cached
+        // manifest from before the deploy (max-age 300 s).
+        _log('"$operator" not in the manifest.');
+        return DbUpdateStatus.serverError;
+      }
+
+      final remote = entry['version'] as int;
+      final schema = entry['schema'] as int? ?? 1;
+      final prefs = await SharedPreferences.getInstance();
+      final have = [
+        await installedVersion(operator),
+        prefs.getInt('$_pendingKey$operator') ?? 0,
+      ].reduce((a, b) => a > b ? a : b);
+      if (remote <= have || schema > kSupportedDbSchema) {
+        _log('"$operator" current: have v$have, remote v$remote (schema $schema).');
+        return DbUpdateStatus.upToDate;
+      }
+
+      final dir = await _dbDirectory();
+      final nextPath = p.join(dir.path, '$operator.db.next');
+      final tmpPath = '$nextPath.tmp';
+      final fileUrl = Uri.parse(manifestUrl).resolve(entry['file'] as String);
+      try {
+        await dio.downloadUri(
+          fileUrl,
+          tmpPath,
+          options: Options(receiveTimeout: const Duration(minutes: 5)),
+          onReceiveProgress: (got, total) {
+            if (total > 0) onProgress?.call(got / total);
+          },
+        );
+        final hash = sha256.convert(await File(tmpPath).readAsBytes()).toString();
+        if (hash != entry['sha256']) {
+          _log('"$operator" v$remote checksum mismatch — discarded.');
+          return DbUpdateStatus.checksumMismatch;
+        }
+        File(tmpPath).renameSync(nextPath);
+      } finally {
+        if (File(tmpPath).existsSync()) File(tmpPath).deleteSync();
+      }
+      await prefs.setInt('$_pendingKey$operator', remote);
+      _log('"$operator" v$remote downloaded; applies on next open.');
+      return DbUpdateStatus.updated;
+    } on DioException catch (e) {
+      _log('"$operator" update check failed: ${e.type}');
+      return switch (e.type) {
+        DioExceptionType.connectionTimeout ||
+        DioExceptionType.receiveTimeout ||
+        DioExceptionType.connectionError => DbUpdateStatus.noConnection,
+        _ => DbUpdateStatus.serverError,
+      };
+    } catch (e) {
+      _log('"$operator" update check failed: $e');
+      return DbUpdateStatus.unknown;
+    }
   }
 
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
 
-  Future<Map<String, dynamic>?> _fetchManifest() async {
-    try {
-      final url = '${InsforgeConfig.baseUrl}'
-          '/api/storage/buckets/${InsforgeConfig.manifestBucket}'
-          '/objects/${InsforgeConfig.manifestKey}';
-      final r = await Dio().get<dynamic>(
-        url,
-        options: Options(
-          receiveTimeout: const Duration(seconds: 10),
-          sendTimeout: const Duration(seconds: 10),
-        ),
-      );
-      if (r.statusCode != 200) return null;
-      // Dio may already have decoded JSON; handle both cases.
-      final data = r.data;
-      if (data is Map<String, dynamic>) return data;
-      if (data is String) return jsonDecode(data) as Map<String, dynamic>;
-      return null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<void> _downloadFile(
-    String bucket,
-    String key,
-    String destPath,
-  ) async {
-    final url = '${InsforgeConfig.baseUrl}'
-        '/api/storage/buckets/$bucket/objects/$key';
-    await Dio().download(
-      url,
-      destPath,
-      options: Options(receiveTimeout: const Duration(minutes: 5)),
-    );
-  }
-
-  Future<String> _sha256(String path) async {
-    final bytes = await File(path).readAsBytes();
-    return sha256.convert(bytes).toString();
+  static void _log(String message) {
+    if (kDebugMode) debugPrint('[DatabaseUpdater] $message');
   }
 
   Future<Directory> _dbDirectory() async {
@@ -179,28 +194,33 @@ class DatabaseUpdater {
   }
 
   /// Copies the bundled `assets/initial/{operator}.db` to [localPath].
-  /// Silently skips if the asset is absent (network download will cover it).
   Future<void> _bootstrapFromAssets(
     String operator,
     String localPath,
     SharedPreferences prefs,
+    int bundledVersion,
   ) async {
     try {
       final asset = await rootBundle.load('assets/initial/$operator.db');
-      await File(localPath).writeAsBytes(asset.buffer.asUint8List(), flush: true);
-      // Mark version=1 so a remote v1 is treated as up-to-date.
-      await prefs.setInt('$_prefKeyPrefix$operator', 1);
-      if (kDebugMode) {
-        debugPrint('[DatabaseUpdater] Bootstrapped "$operator" from assets.');
-      }
-    } catch (_) {
-      // Asset absent — will download from network on first run.
-      if (kDebugMode) {
-        debugPrint(
-          '[DatabaseUpdater] No bundled asset for "$operator"; '
-          'will download from network.',
-        );
-      }
+      final tmpPath = '$localPath.asset';
+      await File(tmpPath).writeAsBytes(asset.buffer.asUint8List(), flush: true);
+      _replaceDbFile(tmpPath, localPath);
+      // Remote files at or below this version are older than what we ship.
+      await prefs.setInt('$_versionKey$operator', bundledVersion);
+      _log('Bootstrapped "$operator" from assets (v$bundledVersion).');
+    } catch (e) {
+      _log('No bundled asset for "$operator": $e');
+      if (!File(localPath).existsSync()) rethrow;
     }
+  }
+
+  /// Moves [from] over [to], dropping the old file's WAL journal so SQLite
+  /// never replays it onto the new database.
+  void _replaceDbFile(String from, String to) {
+    for (final suffix in ['', '-wal', '-shm']) {
+      final f = File('$to$suffix');
+      if (f.existsSync()) f.deleteSync();
+    }
+    File(from).renameSync(to);
   }
 }

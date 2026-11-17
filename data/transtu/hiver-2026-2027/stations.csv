@@ -1,0 +1,82 @@
+code,name,name_ar,name_ru
+T001,Tunis Marine,تونس البحرية,Тунис-Марин
+T002,Farhat Hached,فرحات حشاد,Фархат-Хашед
+T003,Place de Barcelone,ساحة برشلونة,Площадь Барселоны
+T004,Place de la Republique,ساحة الجمهورية,Площадь Республики
+T005,Bab El Khadra,باب الخضراء,Баб-эль-Хадра
+T006,Bab Laassal,باب العسل,Баб-Лаасаль
+T007,Bab Saadoun,باب سعدون,Баб-Саадун
+T010,Bab Alioua,باب عليوة,Баб-Алиуа
+T011,Mohamed Manachou,محمد مناشو,Мохамед-Манашу
+T012,13 Aout,13 أوت,13 Августа
+T013,Mohamed Ali,محمد علي,Мохамед-Али
+T014,El Kabaria,الكبارية,Эль-Кабария
+T015,Ibn Sina,حي ابن سينا,Ибн-Сина
+T016,El Ouardia 6,الوردية 6,Эль-Уардия 6
+T017,Cite Ennour,حي النور,Сите-Эннур
+T018,Abou El Kacem Echebbi,أبو القاسم الشابي,Абу-эль-Касем-Шебби
+T019,Ben Arous,بن عروس,Бен-Арус
+T020,Nelson Mandela,نلسون مانديلا,Нельсон-Мандела
+T021,Mohamed V,محمد الخامس,Мохамед V
+T022,Palestine,فلسطين,Палестина
+T023,Les Jardins,الحدائق,Ле-Жарден
+T024,Cite El Khadra,حي الخضراء,Сите-эль-Хадра
+T025,La Jeunesse,الشباب,Ла-Жёнес
+T026,Cite Sportive,الحي الرياضي,Сите-Спортив
+T027,10 Decembre,10 ديسمبر,10 Декабря
+T028,Cite des Sciences,مدينة العلوم,Сите-де-Сьянс
+T029,L'Independance,الاستقلال,Эндепанданс
+T030,Ariana,أريانة,Ариана
+T031,Meftah Saadallah,مفتاح سعد الله,Мефтах-Саадалла
+T032,Rommana,الرمانة,Роммана
+T033,Campus El Manar,جامعة تونس المنار,Кампус Эль-Манар
+T034,14 Janvier 2011,14 جانفي 2011,14 Января 2011
+T035,Les Jasmins,الياسمينات,Ле-Жасмен
+T036,Ibn Khaldoun,ابن خلدون,Ибн-Хальдун
+T037,Ettahrir,التحرير,Эттахрир
+T038,El Omrane Superieur,العمران الأعلى,Эль-Омран-Сюперьёр
+T039,Ettadhamen,حي التضامن,Эттадамен
+T040,Intilaka,الانطلاقة,Интилака
+T041,Bouchoucha,بوشوشة,Бушуша
+T042,20 Mars,20 مارس,20 Марта
+T043,Le Bardo (Metro),باردو (مترو),Ле-Бардо (метро)
+T044,Essaidia,السعيدية,Эссаидия
+T045,Khaznadar,خزندار,Хазнадар
+T046,L'Artisanat,الصناعات التقليدية,Артизана
+T047,Den Den,الدندان,Ден-Ден
+T048,Manouba (Metro),منوبة (مترو),Мануба (метро)
+T049,Slimane Kahia,سليمان كاهية,Слиман-Кахия
+T050,Moncef Bey,المنصف باي,Монсеф-Бей
+T051,Aboubaker Errazi,أبو بكر الرازي,Абубакер-Эррази
+T052,Pole Technologique,القطب التكنولوجي,Технологический полюс
+T053,Ksar El Warda,قصر الوردة,Ксар-эль-Варда
+T054,Campus de la Manouba,جامعة منوبة,Кампус Манубы
+T055,Kheireddine,خير الدين,Хейреддин
+T060,Tahar Haddad,الطاهر الحداد,Тахар-Хаддад
+T061,El Ghazali,الغزالي,Эль-Газали
+T062,Cite Municipale,الحي البلدي,Сите-Мюнисипаль
+T063,Ennesri,النسري,Эннесри
+T064,El Montazah,المنتزه,Эль-Монтазах
+T065,El Mourouj 2,المروج 2,Эль-Мурудж 2
+T066,El Mourouj 1,المروج 1,Эль-Мурудж 1
+T067,L'Environnement,البيئة,Анвиронман
+T068,El Mourouj 3,المروج 3,Эль-Мурудж 3
+T069,Les Martyrs,الشهداء,Ле-Мартир
+T070,El Mourouj 4,المروج 4,Эль-Мурудж 4
+T102,Le Bac,البطاح,Ле-Бак
+T103,La Goulette,حلق الوادي,Ла-Гулет
+T104,La Goulette Neuve,حلق الوادي الجديدة,Ла-Гулет-Нёв
+T105,La Goulette Casino,حلق الوادي كازينو,Ла-Гулет-Казино
+T106,Khereddine (La Goulette),خير الدين (حلق الوادي),Хереддин (Ла-Гулет)
+T107,L'Aeroport,المرسى الجوية,Аэропорт
+T108,Le Kram,الكرم,Ле-Крам
+T109,Carthage Salammbo,قرطاج صلامبو,Карфаген-Саламбо
+T110,Carthage Byrsa,قرطاج بيرصة,Карфаген-Бирса
+T111,Carthage Dermech,قرطاج درمش,Карфаген-Дермеш
+T112,Carthage Hannibal,قرطاج حنبعل,Карфаген-Ганнибал
+T113,Carthage Presidence,قرطاج الرئاسة,Карфаген-Президанс
+T114,Carthage Amilcar,قرطاج أميلكار,Карфаген-Амилькар
+T115,Sidi Bou Said,سيدي بوسعيد,Сиди-Бу-Саид
+T116,Sidi Dhrif,سيدي الظريف,Сиди-Дриф
+T117,La Corniche,الكورنيش,Ла-Корниш
+T118,La Marsa Plage,المرسى الشاطئ,Ла-Марса-Пляж

@@ -25,7 +25,8 @@ class _AdBannerWidgetState extends ConsumerState<AdBannerWidget> {
     _loadAd();
   }
 
-  void _loadAd() {
+  Future<void> _loadAd() async {
+    if (!await AdService.canRequestAds() || !mounted) return;
     _bannerAd = BannerAd(
       adUnitId: AdService.bannerAdUnitId,
       size: widget.size,

@@ -1,0 +1,31 @@
+TunisGO is a train, metro and TGM timetable app for Tunisia. Check SNCFT train schedules and the TRANSTU light metro and TGM between any two stations, see live train delays and cancellations, and plan your trip — even without internet.
+
+✦ TRAIN SCHEDULES FOR ALL OF TUNISIA
+• Search trains between two stations: departure and arrival times, duration, train number and every stop
+• Station timetable: all departures and arrivals at your station
+• Main lines and suburban trains: Tunis, Sousse, Monastir, Mahdia, Sfax, Gabès, Gafsa, Tozeur, Bizerte, Béja, Jendouba, Ghardimaou, Kasserine, Nabeul, Hammamet, Banlieue Sud (Hammam-Lif, Borj Cédria) and more
+• Around 240 stations of the SNCFT network
+• Winter, summer and Ramadan timetables, updated automatically
+
+✦ LIGHT METRO AND TGM (TRANSTU)
+• All 6 Tunis light metro lines and the TGM Tunis Marine – La Marsa, in search and Lines
+• First and last departures and frequency published by TRANSTU (winter 2026-2027); times at each station are estimated and marked as such
+• TGM fare Tunis Marine – La Marsa
+
+✦ LIVE DELAYS
+• Live departure board: which trains are on time, late or cancelled (data published by SNCFT)
+• Delay shown right in the trip details with the expected time
+
+✦ REMINDERS AND FAVORITES
+• Save the trains you take every day
+• Get a reminder before departure so you never miss your train
+
+✦ WORKS OFFLINE
+The full timetable is stored on your phone: search train times in the metro, outside the city or while roaming, with no data.
+
+✦ IN YOUR LANGUAGE
+English, French, Arabic and Russian. Station names can be searched in any of these languages.
+
+Free, no account needed. The app shows ads.
+
+TunisGO is an independent app and is not affiliated with SNCFT (Société Nationale des Chemins de Fer Tunisiens) or TRANSTU (Société des Transports de Tunis). Timetables are based on public information and may change; for important trips, check with the operator or at the station.

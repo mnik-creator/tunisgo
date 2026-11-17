@@ -10,12 +10,15 @@
 Keeps stops, routes, fares and fare_rules from --src; replaces every trip and
 stop time with the CSVs. A train whose trip_id already exists keeps its old
 `trips.id`, so favourites and scheduled notifications (stored by id) survive
-the update. Stdlib only.
+the update. Stdlib only. TRANSTU (métro, TGM) lives in transtu.db instead
+(tools/build_transtu_db.py).
 
 CSV formats (see data/timetables/*/):
   * poster layout — rows `station,<train>…`, `type,…`, `days,…`, then one row
     per station; `X ARRIVEE` / `X DEPART` rows merge into one stop; a trailing
-    `*` (stops only on some days) is stripped.
+    `*` marks a stop served only on some days, per the poster legend in
+    STAR_DAYS, stored as a weekday bitmask in `stop_times.stop_days` (NULL =
+    whenever the train runs).
   * table layout — header `days,train,<station>…`, one row per train.
 """
 from __future__ import annotations
@@ -47,6 +50,11 @@ CALENDAR = {
     'G': 'Mardi, jeudi, dimanche',
 }
 
+# Weekday bitmask (Mon=1 … Sun=64) for stops marked `*`, per CSV file prefix.
+STAR_DAYS = {
+    'L6_': 4 | 64,  # TRIKA: arrêt les dimanches et mercredis seulement
+}
+
 # trip_id prefix per CSV file (by file-name prefix), following the existing DB.
 PREFIXES = [
     ('BL-A_', 'ligne_a_tunis_erriadh_'),
@@ -63,12 +71,12 @@ PREFIXES = [
 # Poster spelling -> stops.name, where normalisation alone is not enough.
 ALIASES = {
     'AL HRAIRIYA': 'El Hrayria',
-    'BAGHDADI': 'Baghdedi',
-    'BEN BECHIR': 'Benbachir',
-    'BIR BOU REGBA': 'Bir Bourekba',
+    'BAGHDADI': 'Baghdadi',
+    'BEN BECHIR': 'Ben Bachir',
+    'BIR BOU REGBA': 'Bir Bou Regba',
     'BIR KASSAA': 'Bir Kassa',
     'BORJ EL ARIF': 'Borj Arif',
-    'BORJ TOUM': 'Borj Ettoum',
+    'BORJ TOUM': 'Borj Toum',
     'BOU ARGOUB': 'Bou Arkoub',
     'DEPEINNE': 'Depienne',
     'EL KRIB': 'Le Krib',
@@ -78,34 +86,34 @@ ALIASES = {
     'EZZAHRA': 'Mahdia Ezzahra',       # Metro du Sahel
     'EZ-ZAHRA': 'Ez-Zahra',            # banlieue sud de Tunis
     'EZZOUHOUR': 'Ezzouhour 2',
-    'FEJ ET TAMEUR': 'Fej Etameur',
-    'FOUNDOUK JEDID': 'Fondouk Jedid',
+    'FEJ ET TAMEUR': 'Fej Tameur',
+    'FOUNDOUK JEDID': 'Foundouk Jedid',
     'GOBAA': 'Gobaa',
     'GOBAA VILLE': 'Gobaa Ville',
     'HAMMAM CHATT': 'Hammam Chat',
-    'JBEL JELLOUD': 'Djebal Jelloud',
-    'JEBEL JELLOUD': 'Djebal Jelloud',
+    'JBEL JELLOUD': 'Jebel Jelloud',
+    'JEBEL JELLOUD': 'Jebel Jelloud',
     'JENDOUBA': 'Jendouba V',
     'K MED BENNANE': 'Ksiba Bennane',
     'KALAA SEGHIRA': 'Kalaa Sghira',
     'KHELIDIA': 'Khledia',
-    'KHNISS-BEMBLA': 'Khnis/Bembla',
-    'KSAR HELLAL': 'Ksar Helal',
-    'KSAR HELLAL Z IND': 'Ksar Helal Zone Industrielle',
+    'KHNISS-BEMBLA': 'Khniss Bembla',
+    'KSAR HELLAL': 'Ksar Hellal',
+    'KSAR HELLAL Z IND': 'Ksar Hellal Zone Industrielle',
     "L'AEROPORT": 'Aeroport Skanes Monastir',
     'LA FACULTE 2': 'La Faculte 2',
     'LES HOTELS': 'Les Hotels Monastir',
-    'LYCEE EZZAHRA': 'Ezzahra Lycée',
+    'LYCEE EZZAHRA': 'Lycée Ezzahra',
     'LYCEE RADES': 'Lycee Technique Rades',
     "M'RAZGA": "M'Razka",
     'MAHDIA Z TOURIS': 'Mahdia Zone Touristique',
     'MAHRES': 'Mahares',
     'MANOUBA': 'Mannouba',
     'MEGRINE': 'Megrine',
-    'MEGRINE RYADH': 'Megrine Ryad',
+    'MEGRINE RYADH': 'Megrine Riadh',
     'MELLASSINE': 'Mallassine',
     'MESSAADINE': "M'seken Messadine",
-    'MOKNINE GRIBAA': 'Moknine Griba',
+    'MOKNINE GRIBAA': 'Moknine Gribaa',
     'MOKNINE Z IND': 'Moknine Zone Industrielle',
     'MONASTIR Z IND': 'Monastir Zone Industrielle',
     'NAASSEN': 'Nassen',
@@ -113,13 +121,13 @@ ALIASES = {
     'SAHLINE SABKHA': 'Sahline Sebkha',
     'SAYADA': 'Sayeda',
     'SAYADA MANNOUBIA': 'Saida Manoubia',
-    'SIDI MESSOUD': 'Sidi Masaoud',
+    'SIDI MESSOUD': 'Sidi Messaoud',
     'SOUSSE BAB JEDID': 'Sousse Bab Jdid',
     'SOUSSE MED V': 'Sousse Mohamed V',
     'SOUSSE Z IND': 'Sousse Zone Industrielle',
     'TABEDDIT (ARRET 1)': 'Tabeddit',
     'TABEDDIT (ARRET 2)': 'Tabeddit',
-    'TEBOULBA Z IND': 'Teboulba Zi',
+    'TEBOULBA Z IND': 'Teboulba Zone Industrielle',
 }
 
 NB_HYPHEN = '‑'  # keeps "5-13/57" whole in the app's train-number display
@@ -138,7 +146,7 @@ def hhmmss(t: str) -> str:
 
 
 def read_csv(path: Path):
-    """Yields (train, days_token, [(poster_station, arr, dep)])."""
+    """Yields (train, days_token, [(poster_station, arr, dep, starred)])."""
     rows = list(csv.reader(path.open(encoding='utf-8')))
     if rows[0][0] == 'station':
         trains = rows[0][1:]
@@ -147,21 +155,25 @@ def read_csv(path: Path):
             stops: list[list[str]] = []
             index: dict[str, int] = {}
             for row in rows[3:]:
-                cell = row[col + 1].strip().rstrip('*') if col + 1 < len(row) else ''
+                cell = row[col + 1].strip() if col + 1 < len(row) else ''
+                starred = cell.endswith('*')
+                cell = cell.rstrip('*')
                 if not cell:
                     continue
                 raw = row[0].strip()
                 base = re.sub(r'\s+(ARRIVEE|DEPART)$', '', raw)
                 if base in index and raw.endswith('DEPART'):
                     stops[index[base]][2] = cell
+                    stops[index[base]][3] |= starred
                     continue
                 index[base] = len(stops)
-                stops.append([base, cell, cell])
+                stops.append([base, cell, cell, starred])
             yield train, days[col], [tuple(s) for s in stops]
     else:
         header = rows[0]
         for row in rows[1:]:
-            stops = [(header[i], v, v) for i, v in enumerate(row[2:], 2) if v.strip()]
+            stops = [(header[i], v.rstrip('*'), v.rstrip('*'), v.strip().endswith('*'))
+                     for i, v in enumerate(row[2:], 2) if v.strip()]
             yield row[1], row[0], stops
 
 
@@ -227,6 +239,8 @@ def main() -> int:
     old_routes = {code: rid for code, rid in con.execute('SELECT trip_id, route_id FROM trips')}
     next_id = max(old_ids.values(), default=0) + 1
 
+    if 'stop_days' not in [c[1] for c in con.execute('PRAGMA table_info(stop_times)')]:
+        con.execute('ALTER TABLE stop_times ADD COLUMN stop_days INTEGER')
     con.execute('DELETE FROM stop_times')
     con.execute('DELETE FROM trips')
     for code, desc in CALENDAR.items():
@@ -236,6 +250,7 @@ def main() -> int:
     seen: set[str] = set()
     for path in sorted(Path(args.csv).glob('*.csv')):
         prefix = next(p for key, p in PREFIXES if path.name.startswith(key))
+        star_days = next((d for key, d in STAR_DAYS.items() if path.name.startswith(key)), None)
         file_trains = list(read_csv(path))
         previous = [old_routes[prefix + t.replace('-', NB_HYPHEN)] for t, _, _ in file_trains
                     if prefix + t.replace('-', NB_HYPHEN) in old_routes]
@@ -248,7 +263,9 @@ def main() -> int:
             seen.add(trip_code)
             if len(calls) < 2:
                 raise SystemExit(f'{trip_code}: fewer than two stops')
-            stop_ids = [resolve(name) for name, _, _ in calls]
+            stop_ids = [resolve(name) for name, _, _, _ in calls]
+            if any(c[3] for c in calls) and star_days is None:
+                raise SystemExit(f'{path.name}: `*` stop but no STAR_DAYS legend for this file')
             if trip_code in old_ids:
                 tid = old_ids[trip_code]
                 kept += 1
@@ -259,11 +276,11 @@ def main() -> int:
             con.execute(
                 'INSERT INTO trips (id, trip_id, route_id, service_id) VALUES (?, ?, ?, ?)',
                 (tid, trip_code, route_for(stop_ids[0], stop_ids[-1], line_default), DAYS[days]))
-            for seq, (sid, (_, arr, dep)) in enumerate(zip(stop_ids, calls), 1):
+            for seq, (sid, (_, arr, dep, starred)) in enumerate(zip(stop_ids, calls), 1):
                 con.execute(
-                    'INSERT INTO stop_times (trip_id, stop_id, arrival_time, departure_time, stop_sequence) '
-                    'VALUES (?, ?, ?, ?, ?)',
-                    (tid, sid, hhmmss(arr), hhmmss(dep), seq))
+                    'INSERT INTO stop_times (trip_id, stop_id, arrival_time, departure_time, stop_sequence, stop_days) '
+                    'VALUES (?, ?, ?, ?, ?, ?)',
+                    (tid, sid, hhmmss(arr), hhmmss(dep), seq, star_days if starred else None))
                 n_stop_times += 1
 
     stats = {t: con.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0]

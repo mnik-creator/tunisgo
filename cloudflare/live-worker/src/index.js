@@ -4,25 +4,49 @@
 // TunisGO live proxy.
 //
 // Every minute (cron) it reads the public SNCFT live tracker once, refreshes
-// the stop lists of the trains that need it, and writes one `live.json` to R2.
+// the stop lists of the trains that need it, and stores one `live.json` in a
+// Durable Object. Quiet nights poll every 15 min instead (see feed.js).
 // The app reads that file instead of calling sncft.com.tn, so SNCFT sees one
 // client no matter how many users there are, and user IPs never reach it.
 //
-//   GET /live.json  -> latest snapshot (edge-cached 30 s)
+//   GET /live.json         -> latest snapshot (edge-cached 30 s)
+//   GET /db/manifest.json  -> timetable DB versions (static asset)
+//   GET /db/<name>-v<N>.db -> timetable DB file (static asset)
+import { DurableObject } from 'cloudflare:workers';
+
 import {
   SUBREQUEST_BUDGET,
   buildFeed,
   compactStop,
+  countRunning,
   mapLimit,
   mergeSnapshot,
   selectForRefresh,
+  shouldPoll,
 } from './feed.js';
 
 const ORIGIN = 'https://www.sncft.com.tn';
 const AJAX = `${ORIGIN}/wp-admin/admin-ajax.php`;
 const PLUGIN = `${ORIGIN}/wp-content/plugins/sncft-live-tracker`;
-const OBJECT_KEY = 'live.json';
 const USER_AGENT = 'TunisGO-live/1.0 (+https://github.com/mnik-creator/tunisgo)';
+
+/// Single instance holding the latest feed. Metadata is kept apart from the
+/// body so the cron can decide whether to poll without reading 100 KB.
+export class LiveStore extends DurableObject {
+  async read() {
+    return (await this.ctx.storage.get('body')) ?? null;
+  }
+
+  async running() {
+    return (await this.ctx.storage.get('running')) ?? 1;
+  }
+
+  async write(body, running) {
+    await this.ctx.storage.put({ body, running });
+  }
+}
+
+const store = (env) => env.LIVE_STORE.get(env.LIVE_STORE.idFromName('live'));
 
 export default {
   async scheduled(_event, env, ctx) {
@@ -44,12 +68,11 @@ export default {
     const hit = await cache.match(cacheKey);
     if (hit) return hit;
 
-    const object = await env.LIVE_BUCKET.get(OBJECT_KEY);
-    if (!object) {
+    const body = await store(env).read();
+    if (!body) {
       return json('{"error":"not ready"}', 503, 'no-store');
     }
-    const response = json(object.body, 200, 'public, max-age=30');
-    response.headers.set('etag', object.httpEtag);
+    const response = json(body, 200, 'public, max-age=30');
     ctx.waitUntil(cache.put(cacheKey, response.clone()));
     return response;
   },
@@ -67,6 +90,11 @@ function json(body, status, cacheControl) {
 }
 
 async function refresh(env) {
+  // Quiet nights: decide from the stored running count (no SNCFT request)
+  // whether this minute's run is due.
+  const live = store(env);
+  if (!shouldPoll(new Date(), await live.running())) return;
+
   let used = 0;
   const getJson = async (url) => {
     used++;
@@ -94,8 +122,13 @@ async function refresh(env) {
     }
   }
 
-  const previousObject = await env.LIVE_BUCKET.get(OBJECT_KEY);
-  const previous = previousObject ? await previousObject.json().catch(() => null) : null;
+  let previous = null;
+  try {
+    const body = await live.read();
+    previous = body ? JSON.parse(body) : null;
+  } catch {
+    // Corrupt or missing: start fresh.
+  }
 
   const trains = mergeSnapshot(snapshot, previous);
   const nowS = Math.floor(Date.now() / 1000);
@@ -117,11 +150,6 @@ async function refresh(env) {
     }
   });
 
-  await env.LIVE_BUCKET.put(OBJECT_KEY, JSON.stringify(buildFeed(trains)), {
-    httpMetadata: {
-      contentType: 'application/json; charset=utf-8',
-      cacheControl: 'public, max-age=30',
-    },
-  });
+  await live.write(JSON.stringify(buildFeed(trains)), countRunning(trains));
   console.log(`live.json: ${trains.length} trains, ${queue.length} stop lists refreshed, ${used} subrequests`);
 }

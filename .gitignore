@@ -81,3 +81,23 @@ assets/db/custom*.db
 .roo
 .trae
 .windsurf
+
+# fastlane
+android/fastlane/report.xml
+android/fastlane/README.md
+android/fastlane/*.json
+
+# graphify (regenerate with /graphify . --update)
+graphify-out/
+# Obsidian per-user state
+brain/.obsidian/workspace*.json
+brain/.obsidian/cache
+
+# Private, kept local only (public repo):
+# project notes vault, promo kit, generated website (cloudflare/site/build.py),
+# copies of official TRANSTU posters (sha256 in NOTES.md)
+brain/
+marketing/
+cloudflare/site/public/
+data/transtu/*/sources/
+cloudflare/live-worker/.wrangler/

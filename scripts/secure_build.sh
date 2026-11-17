@@ -15,6 +15,12 @@ if [ -z "$INSFORGE_ANON_KEY" ]; then
     exit 1
 fi
 
+if [ -z "$WORKER_URL" ]; then
+    echo "❌ Error: WORKER_URL is not set (e.g. https://tunisgo-live.tunisgo.workers.dev)"
+    echo "   It enables live delays and timetable updates."
+    exit 1
+fi
+
 BUILD_TYPE="${1:-apk}"
 
 echo "🔒 Building TunisGO with secure configuration..."
@@ -24,21 +30,24 @@ case $BUILD_TYPE in
     apk)
         flutter build apk --release \
             --dart-define=INSFORGE_URL="$INSFORGE_URL" \
-            --dart-define=INSFORGE_ANON_KEY="$INSFORGE_ANON_KEY"
+            --dart-define=INSFORGE_ANON_KEY="$INSFORGE_ANON_KEY" \
+            --dart-define=WORKER_URL="$WORKER_URL"
         echo "✅ APK built successfully!"
         echo "   Output: build/app/outputs/flutter-apk/app-release.apk"
         ;;
     appbundle)
         flutter build appbundle --release \
             --dart-define=INSFORGE_URL="$INSFORGE_URL" \
-            --dart-define=INSFORGE_ANON_KEY="$INSFORGE_ANON_KEY"
+            --dart-define=INSFORGE_ANON_KEY="$INSFORGE_ANON_KEY" \
+            --dart-define=WORKER_URL="$WORKER_URL"
         echo "✅ App Bundle built successfully!"
         echo "   Output: build/app/outputs/bundle/release/app-release.aab"
         ;;
     ipa)
         flutter build ipa --release \
             --dart-define=INSFORGE_URL="$INSFORGE_URL" \
-            --dart-define=INSFORGE_ANON_KEY="$INSFORGE_ANON_KEY"
+            --dart-define=INSFORGE_ANON_KEY="$INSFORGE_ANON_KEY" \
+            --dart-define=WORKER_URL="$WORKER_URL"
         echo "✅ IPA built successfully!"
         ;;
     *)

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/ad_service.dart';
 
 class NativeAdWidget extends ConsumerStatefulWidget {
@@ -23,7 +24,8 @@ class _NativeAdWidgetState extends ConsumerState<NativeAdWidget> {
     _load();
   }
 
-  void _load() {
+  Future<void> _load() async {
+    if (!await AdService.canRequestAds() || !mounted) return;
     NativeAd(
       adUnitId: AdService.nativeAdUnitId,
       request: const AdRequest(),
@@ -66,7 +68,7 @@ class _NativeAdWidgetState extends ConsumerState<NativeAdWidget> {
             borderRadius: BorderRadius.circular(2),
           ),
           child: Text(
-            'Pub',
+            AppLocalizations.of(context).ad_label,
             style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
           ),
         ),

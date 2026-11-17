@@ -1,10 +1,11 @@
 // Copyright (c) 2025 mnik-creator
 // Licensed under MIT — see LICENSE file
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -12,24 +13,40 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/helpers/locale_provider.dart';
 import '../../core/helpers/theme_provider.dart';
+import '../../core/helpers/time_helpers.dart';
 import '../../core/models/station.dart';
 import '../../core/models/stop_time.dart';
+import '../../core/models/trip.dart';
 import '../../core/repositories/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
+import '../../services/share_service.dart';
+import '../../services/ad_service.dart';
 import '../../services/db_update_service.dart';
 import '../favorites/favorites_provider.dart';
+import '../limits/earn_slot.dart';
+import '../limits/slot_limits_provider.dart';
+import '../notifications/notifications_service.dart';
+import '../notifications/scheduled_trips_provider.dart';
 
-final _settingsStationsMapProvider =
-    FutureProvider<Map<String, Station>>((ref) async {
+final _settingsStationsMapProvider = FutureProvider<Map<String, Station>>((
+  ref,
+) async {
   final stations = await ref.read(stationRepositoryProvider).getAllStations();
   return {for (final s in stations) s.id: s};
 });
 
+final _settingsTripProvider = FutureProvider.family<Trip?, String>((
+  ref,
+  tripId,
+) {
+  return ref.read(tripRepositoryProvider).getTripById(tripId);
+});
+
 final _settingsTripStopTimesProvider =
     FutureProvider.family<List<StopTime>, String>((ref, tripId) {
-  return ref.read(tripRepositoryProvider).getStopTimesForTrip(tripId);
-});
+      return ref.read(tripRepositoryProvider).getStopTimesForTrip(tripId);
+    });
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -56,10 +73,9 @@ class SettingsScreen extends ConsumerWidget {
         children: [
           Text(
             loc.settings,
-            style: Theme.of(context)
-                .textTheme
-                .titleLarge
-                ?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
 
@@ -67,6 +83,12 @@ class SettingsScreen extends ConsumerWidget {
           _SectionHeader(label: loc.my_favorites),
           const SizedBox(height: 8),
           _FavoritesCard(isDark: isDark, loc: loc),
+          const SizedBox(height: 24),
+
+          // ── My reminders ("Notify me") ───────────────────────────────────
+          _SectionHeader(label: loc.my_reminders),
+          const SizedBox(height: 8),
+          _RemindersCard(isDark: isDark, loc: loc),
           const SizedBox(height: 24),
 
           // ── Preferences ──────────────────────────────────────────────────
@@ -195,14 +217,22 @@ class _FavoritesCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.notifications_active_outlined,
-                  size: 16, color: kEmerald500),
+              const Icon(
+                Icons.notifications_active_outlined,
+                size: 16,
+                color: kEmerald500,
+              ),
               const SizedBox(width: 6),
               Text(
                 loc.favorites_reminder_info,
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
               ),
             ],
+          ),
+          _SlotUsage(
+            kind: SlotKind.favorites,
+            used: favorites.length,
+            loc: loc,
           ),
           if (favorites.isEmpty) ...[
             const SizedBox(height: 12),
@@ -212,39 +242,151 @@ class _FavoritesCard extends ConsumerWidget {
             ),
           ] else ...[
             const SizedBox(height: 8),
-            ...favorites.map((tripId) => _FavoriteRouteRow(
-                  tripId: tripId,
-                  loc: loc,
-                )),
-          ],
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.star_border, size: 16),
-              label: Text(loc.see_favorites,
-                  style: const TextStyle(fontSize: 13)),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+            ...favorites.map(
+              (tripId) => _TripRow(
+                tripId: tripId,
+                loc: loc,
+                onRemove: () =>
+                    ref.read(favoriteTripIdsProvider.notifier).remove(tripId),
               ),
-              onPressed: () => context.push('/favorites'),
             ),
-          ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _FavoriteRouteRow extends ConsumerWidget {
-  const _FavoriteRouteRow({required this.tripId, required this.loc});
-  final String tripId;
+// ── Reminders card ───────────────────────────────────────────────────────────
+
+class _RemindersCard extends ConsumerWidget {
+  const _RemindersCard({required this.isDark, required this.loc});
+  final bool isDark;
   final AppLocalizations loc;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Soonest first; legacy reminders without a stored time go last.
+    final reminders = ref.watch(scheduledNotifTripIdsProvider).entries.toList()
+      ..sort(
+        (a, b) =>
+            (a.value ?? DateTime(9999)).compareTo(b.value ?? DateTime(9999)),
+      );
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1F2937) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SlotUsage(
+            kind: SlotKind.reminders,
+            used: reminders.length,
+            loc: loc,
+          ),
+          if (reminders.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                loc.no_reminders,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+              ),
+            ),
+          for (final r in reminders)
+            _TripRow(
+              tripId: r.key,
+              loc: loc,
+              icon: Icons.notifications_active_outlined,
+              note: switch (r.value) {
+                final at? => loc.reminder_at(
+                  minutesToHHMM(at.hour * 60 + at.minute),
+                ),
+                null => null,
+              },
+              onRemove: () async {
+                await NotificationsService.instance.cancel(r.key.hashCode);
+                await ref
+                    .read(scheduledNotifTripIdsProvider.notifier)
+                    .remove(r.key);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "2 / 3 · extra slots until 19 Nov" plus a button to earn one more slot.
+class _SlotUsage extends ConsumerWidget {
+  const _SlotUsage({required this.kind, required this.used, required this.loc});
+  final SlotKind kind;
+  final int used;
+  final AppLocalizations loc;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(slotLimitsProvider);
+    final limits = ref.read(slotLimitsProvider.notifier);
+    final until = limits.bonusExpiry(kind);
+    final style = TextStyle(fontSize: 12, color: Colors.grey.shade500);
+    return Row(
+      children: [
+        Text(loc.slot_usage(used, limits.limit(kind)), style: style),
+        if (until != null)
+          Flexible(
+            child: Text(
+              ' · ${loc.slot_bonus_until(DateFormat.MMMd(loc.localeName).format(until))}',
+              style: style,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        const Spacer(),
+        if (!kIsWeb && limits.canEarnMore(kind))
+          TextButton.icon(
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              foregroundColor: kEmerald500,
+            ),
+            icon: const Icon(Icons.ondemand_video_outlined, size: 16),
+            label: Text(
+              loc.slot_get_more,
+              style: const TextStyle(fontSize: 12),
+            ),
+            onPressed: () => earnSlot(context, ref, kind),
+          ),
+      ],
+    );
+  }
+}
+
+/// A saved trip: number and departure, route, optional note, remove button.
+class _TripRow extends ConsumerWidget {
+  const _TripRow({
+    required this.tripId,
+    required this.loc,
+    required this.onRemove,
+    this.icon = Icons.train_outlined,
+    this.note,
+  });
+  final String tripId;
+  final AppLocalizations loc;
+  final VoidCallback onRemove;
+  final IconData icon;
+  final String? note;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final trip = ref.watch(_settingsTripProvider(tripId)).valueOrNull;
     final stopTimesAsync = ref.watch(_settingsTripStopTimesProvider(tripId));
     final stationsAsync = ref.watch(_settingsStationsMapProvider);
     final locale = ref.watch(localeProvider);
@@ -262,43 +404,51 @@ class _FavoriteRouteRow extends ConsumerWidget {
         );
       },
     );
+    final title = trip == null
+        ? loc.train_number
+        : '${loc.train_number} ${trip.fullTrainNumber} · ${minutesToHHMM(trip.departureTime)}';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
-          const Icon(Icons.train_outlined, size: 16, color: kEmerald500),
+          Icon(icon, size: 16, color: kEmerald500),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${loc.train_number} $tripId',
+                  title,
                   style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w500),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 if (routeLabel != null)
                   Text(
                     routeLabel,
-                    style: TextStyle(
-                        fontSize: 11, color: Colors.grey.shade500),
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  ),
+                if (note != null)
+                  Text(
+                    note!,
+                    style: const TextStyle(fontSize: 11, color: kEmerald500),
                   ),
               ],
             ),
           ),
-          GestureDetector(
-            onTap: () =>
-                ref.read(favoriteTripIdsProvider.notifier).remove(tripId),
-            child: Icon(Icons.star, size: 18, color: Colors.amber.shade600),
+          IconButton(
+            tooltip: loc.remove,
+            visualDensity: VisualDensity.compact,
+            icon: Icon(Icons.close, size: 18, color: Colors.grey.shade500),
+            onPressed: onRemove,
           ),
         ],
       ),
     );
   }
 }
-
-// ── About card ───────────────────────────────────────────────────────────────
 
 class _AboutCard extends StatefulWidget {
   const _AboutCard({required this.isDark, required this.loc});
@@ -315,10 +465,16 @@ class _AboutCardState extends State<_AboutCard> {
   bool _isChecking = false;
   double? _progress;
   String? _resultMsg;
+  bool _adPrivacy = false;
 
   @override
   void initState() {
     super.initState();
+    if (!kIsWeb) {
+      AdService.privacyOptionsRequired().then((v) {
+        if (mounted) setState(() => _adPrivacy = v);
+      }).ignore();
+    }
     DbUpdateService.getLocalVersion().then((v) {
       if (mounted) setState(() => _localVersion = v);
     });
@@ -347,8 +503,7 @@ class _AboutCardState extends State<_AboutCard> {
       DbUpdateStatus.noConnection => widget.loc.error_no_connection,
       DbUpdateStatus.serverError => widget.loc.error_server_unavailable,
       DbUpdateStatus.checksumMismatch ||
-      DbUpdateStatus.unknown =>
-        widget.loc.error_download_retry,
+      DbUpdateStatus.unknown => widget.loc.error_download_retry,
     };
 
     if (status == DbUpdateStatus.updated) {
@@ -432,19 +587,26 @@ class _AboutCardState extends State<_AboutCard> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.storage_outlined,
-                        size: 18, color: Colors.grey.shade600),
+                    Icon(
+                      Icons.storage_outlined,
+                      size: 18,
+                      color: Colors.grey.shade600,
+                    ),
                     const SizedBox(width: 10),
                     Text(
                       widget.loc.version_label,
                       style: TextStyle(
-                          fontSize: 14, color: Colors.grey.shade700),
+                        fontSize: 14,
+                        color: Colors.grey.shade700,
+                      ),
                     ),
                     const Spacer(),
                     Text(
                       _localVersion,
                       style: TextStyle(
-                          fontSize: 12, color: Colors.grey.shade500),
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
                     ),
                   ],
                 ),
@@ -464,7 +626,9 @@ class _AboutCardState extends State<_AboutCard> {
                         Text(
                           '${(_progress! * 100).toInt()}%',
                           style: TextStyle(
-                              fontSize: 11, color: Colors.grey.shade400),
+                            fontSize: 11,
+                            color: Colors.grey.shade400,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -480,7 +644,8 @@ class _AboutCardState extends State<_AboutCard> {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     onPressed: _checkUpdate,
                   ),
@@ -488,12 +653,46 @@ class _AboutCardState extends State<_AboutCard> {
                   const SizedBox(height: 6),
                   Text(
                     _resultMsg!,
-                    style:
-                        TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                     textAlign: TextAlign.center,
                   ),
                 ],
               ],
+            ),
+          ),
+          Container(height: 1, color: Colors.grey.shade200),
+
+          // Share the app
+          Builder(
+            builder: (tileContext) => InkWell(
+              onTap: () => shareText(tileContext, widget.loc.share_app_text),
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.adaptive.share,
+                      size: 18,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      widget.loc.share_app,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      Icons.chevron_right,
+                      size: 18,
+                      color: Colors.grey.shade400,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
           Container(height: 1, color: Colors.grey.shade200),
@@ -506,15 +705,22 @@ class _AboutCardState extends State<_AboutCard> {
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
                 children: [
-                  Icon(Icons.bug_report_outlined,
-                      size: 18, color: Colors.grey.shade600),
+                  Icon(
+                    Icons.bug_report_outlined,
+                    size: 18,
+                    color: Colors.grey.shade600,
+                  ),
                   const SizedBox(width: 10),
-                  Text(widget.loc.report_issue,
-                      style: TextStyle(
-                          fontSize: 14, color: Colors.grey.shade700)),
+                  Text(
+                    widget.loc.report_issue,
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                  ),
                   const Spacer(),
-                  Icon(Icons.chevron_right,
-                      size: 18, color: Colors.grey.shade400),
+                  Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: Colors.grey.shade400,
+                  ),
                 ],
               ),
             ),
@@ -529,20 +735,62 @@ class _AboutCardState extends State<_AboutCard> {
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
                 children: [
-                  Icon(Icons.privacy_tip_outlined,
-                      size: 18, color: Colors.grey.shade600),
+                  Icon(
+                    Icons.privacy_tip_outlined,
+                    size: 18,
+                    color: Colors.grey.shade600,
+                  ),
                   const SizedBox(width: 10),
-                  Text(widget.loc.privacy_policy,
-                      style: TextStyle(
-                          fontSize: 14, color: Colors.grey.shade700)),
+                  Text(
+                    widget.loc.privacy_policy,
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                  ),
                   const Spacer(),
-                  Icon(Icons.chevron_right,
-                      size: 18, color: Colors.grey.shade400),
+                  Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: Colors.grey.shade400,
+                  ),
                 ],
               ),
             ),
           ),
           Container(height: 1, color: Colors.grey.shade200),
+
+          // Ad consent (EEA/UK users must be able to change their choice)
+          if (_adPrivacy) ...[
+            InkWell(
+              onTap: AdService.showPrivacyOptions,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.ads_click,
+                      size: 18,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      widget.loc.ad_privacy_options,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      Icons.chevron_right,
+                      size: 18,
+                      color: Colors.grey.shade400,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Container(height: 1, color: Colors.grey.shade200),
+          ],
 
           // Terms of Service
           InkWell(
@@ -552,15 +800,22 @@ class _AboutCardState extends State<_AboutCard> {
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
                 children: [
-                  Icon(Icons.description_outlined,
-                      size: 18, color: Colors.grey.shade600),
+                  Icon(
+                    Icons.description_outlined,
+                    size: 18,
+                    color: Colors.grey.shade600,
+                  ),
                   const SizedBox(width: 10),
-                  Text(widget.loc.terms_of_service,
-                      style: TextStyle(
-                          fontSize: 14, color: Colors.grey.shade700)),
+                  Text(
+                    widget.loc.terms_of_service,
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                  ),
                   const Spacer(),
-                  Icon(Icons.chevron_right,
-                      size: 18, color: Colors.grey.shade400),
+                  Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: Colors.grey.shade400,
+                  ),
                 ],
               ),
             ),
@@ -575,17 +830,22 @@ class _AboutCardState extends State<_AboutCard> {
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
                 children: [
-                  Icon(Icons.gavel_outlined,
-                      size: 18, color: Colors.grey.shade600),
+                  Icon(
+                    Icons.gavel_outlined,
+                    size: 18,
+                    color: Colors.grey.shade600,
+                  ),
                   const SizedBox(width: 10),
                   Text(
                     'License',
-                    style:
-                        TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
                   ),
                   const Spacer(),
-                  Icon(Icons.chevron_right,
-                      size: 18, color: Colors.grey.shade400),
+                  Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: Colors.grey.shade400,
+                  ),
                 ],
               ),
             ),
@@ -639,10 +899,8 @@ class _AboutCardState extends State<_AboutCard> {
       useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const _TextAssetSheet(
-        assetPath: 'LICENSE',
-        title: 'License',
-      ),
+      builder: (_) =>
+          const _TextAssetSheet(assetPath: 'LICENSE', title: 'License'),
     );
   }
 }
@@ -738,8 +996,9 @@ class _ReportIssueSheetState extends State<_ReportIssueSheet> {
                 borderRadius: BorderRadius.circular(12),
               ),
               filled: true,
-              fillColor:
-                  isDark ? const Color(0xFF374151) : const Color(0xFFF9FAFB),
+              fillColor: isDark
+                  ? const Color(0xFF374151)
+                  : const Color(0xFFF9FAFB),
             ),
           ),
           const SizedBox(height: 16),
@@ -751,10 +1010,12 @@ class _ReportIssueSheetState extends State<_ReportIssueSheet> {
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              onPressed:
-                  (_sending || _controller.text.trim().isEmpty) ? null : _sendEmail,
+              onPressed: (_sending || _controller.text.trim().isEmpty)
+                  ? null
+                  : _sendEmail,
             ),
           ),
         ],
@@ -783,11 +1044,13 @@ class _HtmlSheetState extends State<_HtmlSheet> {
     super.initState();
     _wvController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.disabled)
-      ..setNavigationDelegate(NavigationDelegate(
-        onPageFinished: (_) {
-          if (mounted) setState(() => _loading = false);
-        },
-      ));
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (_) {
+            if (mounted) setState(() => _loading = false);
+          },
+        ),
+      );
     rootBundle.loadString(widget.assetPath).then((html) {
       _wvController.loadHtmlString(html);
     });
@@ -825,7 +1088,9 @@ class _HtmlSheetState extends State<_HtmlSheet> {
                       Text(
                         widget.title,
                         style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w700),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),
@@ -842,8 +1107,7 @@ class _HtmlSheetState extends State<_HtmlSheet> {
             child: Stack(
               children: [
                 WebViewWidget(controller: _wvController),
-                if (_loading)
-                  const Center(child: CircularProgressIndicator()),
+                if (_loading) const Center(child: CircularProgressIndicator()),
               ],
             ),
           ),
@@ -907,7 +1171,9 @@ class _TextAssetSheetState extends State<_TextAssetSheet> {
                       Text(
                         widget.title,
                         style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w700),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),

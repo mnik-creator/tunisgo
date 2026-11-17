@@ -92,11 +92,10 @@ class NotificationsService {
       departureMinutes % 60,
     );
 
-    final minutesUntilDeparture = departureDateTime.difference(now).inMinutes;
-    if (minutesUntilDeparture < 0) return ScheduleNotificationResult.alreadyPassed;
-    if (minutesUntilDeparture < 18) return ScheduleNotificationResult.departureTooSoon;
-
+    if (!departureDateTime.isAfter(now)) return ScheduleNotificationResult.alreadyPassed;
     final notifyAt = departureDateTime.subtract(Duration(minutes: minutesBefore));
+    // The reminder itself must still be ahead of us.
+    if (!notifyAt.isAfter(now)) return ScheduleNotificationResult.departureTooSoon;
 
     const androidDetails = AndroidNotificationDetails(
       'departures',

@@ -4,8 +4,9 @@
   "type": "module",
   "scripts": {
     "test": "node --test test/",
-    "dev": "wrangler dev --test-scheduled",
-    "deploy": "wrangler deploy"
+    "prepare-db": "node scripts/prepare-db.mjs",
+    "dev": "node scripts/prepare-db.mjs && wrangler dev --test-scheduled",
+    "deploy": "node scripts/prepare-db.mjs && wrangler deploy"
   },
   "devDependencies": {
     "wrangler": "4.20.0"

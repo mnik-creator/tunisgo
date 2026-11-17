@@ -12,7 +12,9 @@ import {
   mapLimit,
   mergeSnapshot,
   pickTrain,
+  pollIntervalMinutes,
   selectForRefresh,
+  shouldPoll,
 } from '../src/feed.js';
 
 test('pickTrain keeps known fields, stringifies id and num', () => {
@@ -71,7 +73,7 @@ test('selectForRefresh orders by urgency and skips finished trains', () => {
 
 test('buildFeed stamps version and time', () => {
   const feed = buildFeed([], new Date('2026-11-10T15:00:00Z'));
-  assert.deepEqual(feed, { v: 1, generatedAt: '2026-11-10T15:00:00.000Z', source: 'sncft.com.tn', trains: [] });
+  assert.deepEqual(feed, { v: 1, generatedAt: '2026-11-10T15:00:00.000Z', nextAt: '2026-11-10T15:01:00.000Z', source: 'sncft.com.tn', trains: [] });
 });
 
 test('mapLimit never exceeds the concurrency limit', async () => {
@@ -87,4 +89,27 @@ test('mapLimit never exceeds the concurrency limit', async () => {
   });
   assert.equal(peak, 3);
   assert.deepEqual(seen.sort(), [1, 2, 3, 4, 5, 6, 7]);
+});
+
+// Tunis = UTC+1, so 01:00 Tunis is 00:00Z.
+const at = (hhmmZ) => new Date(`2026-11-12T${hhmmZ}:00Z`);
+
+test('polls every minute by day and while any train runs at night', () => {
+  assert.equal(pollIntervalMinutes(at('12:00'), 0), 1);
+  assert.equal(pollIntervalMinutes(at('01:00'), 2), 1);
+  assert.equal(pollIntervalMinutes(at('23:20'), 0), 1); // 00:20 Tunis
+});
+
+test('slows to 15 minutes on a quiet night, aligned to the quarter', () => {
+  assert.equal(pollIntervalMinutes(at('00:00'), 0), 15); // 01:00 Tunis
+  assert.equal(shouldPoll(at('00:00'), 0), true);
+  assert.equal(shouldPoll(at('00:07'), 0), false);
+  assert.equal(shouldPoll(at('00:07'), 1), true);
+  assert.equal(pollIntervalMinutes(at('03:15'), 0), 1); // 04:15 Tunis
+});
+
+test('buildFeed announces the next poll', () => {
+  const feed = buildFeed([], at('00:00'));
+  assert.equal(feed.nextAt, '2026-11-12T00:15:00.000Z');
+  assert.equal(buildFeed([{ status: 'EN_ROUTE' }], at('00:00')).nextAt, '2026-11-12T00:01:00.000Z');
 });

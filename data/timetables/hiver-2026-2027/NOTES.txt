@@ -17,7 +17,7 @@ BL-E_tunis_bougatfa 517: no day code printed -> treated as daily
 BL-S_sousse_mahdia 503 SOUSSE Z IND: 5:41 -> 06:41
 
 # Simplifications (the DB schema cannot express these)
-L6 TRIKA (*): stop only on Sundays and Wednesdays -> stored as a regular stop.
+L6 TRIKA (*): stop only on Sundays and Wednesdays -> stop_times.stop_days = 68 (Wed|Sun); see STAR_DAYS in tools/build_timetable_db.py.
 BL-S (Metro du Sahel): poster has no day legend -> all trains treated as daily.
 Not on the posters, so absent from the DB: Borj Cedria shuttles 5/912-5/913, Erriadh 291.
 The live feed calls line D trains "JEDEIDA - TUNIS" and line E trains "TUNIS - BIR ANIBA" (00TA4xx);

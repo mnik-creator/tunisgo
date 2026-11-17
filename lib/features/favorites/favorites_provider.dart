@@ -3,6 +3,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/helpers/locale_provider.dart';
+import '../limits/slot_limits_provider.dart';
 
 const _kFavKey = 'favorite_trip_ids';
 
@@ -15,14 +16,14 @@ class FavoriteTripIdsNotifier extends Notifier<Set<String>> {
     return prefs.getStringList(_kFavKey)?.toSet() ?? {};
   }
 
-  /// Adds [tripId] respecting the per-tier limit.
-  /// Returns an [AddFavoriteResult] indicating the outcome.
+  /// Adds [tripId] within the current slot limit (1, plus slots earned with
+  /// rewarded ads — see [slotLimitsProvider]). Favorites saved before a limit
+  /// dropped are kept; only new ones are refused.
   Future<AddFavoriteResult> add(String tripId) async {
     if (state.contains(tripId)) return AddFavoriteResult.alreadyExists;
 
-    const maxAllowed = 5;
-
-    if (state.length >= maxAllowed) return AddFavoriteResult.limitReached;
+    final limit = ref.read(slotLimitsProvider.notifier).limit(SlotKind.favorites);
+    if (state.length >= limit) return AddFavoriteResult.limitReached;
 
     final updated = {...state, tripId};
     final prefs = ref.read(sharedPreferencesProvider);

@@ -2,7 +2,6 @@
 // Licensed under MIT — see LICENSE file
 import 'package:go_router/go_router.dart';
 
-import '../features/favorites/favorites_screen.dart';
 import '../features/lines/lines_screen.dart';
 import '../features/results/results_screen.dart';
 import '../features/search/trip_search_tab.dart';
@@ -68,11 +67,6 @@ final appRouter = GoRouter(
       builder: (context, state) => StationScheduleScreen(
         stationCode: state.pathParameters['code']!,
       ),
-    ),
-    GoRoute(
-      path: '/favorites',
-      name: 'favorites',
-      builder: (context, state) => const FavoritesScreen(),
     ),
   ],
 );

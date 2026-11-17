@@ -11,6 +11,7 @@ class StopTime {
     required this.arrivalTime,
     required this.departureTime,
     required this.stopNumber,
+    this.stopDays,
   });
 
   factory StopTime.fromMap(Map<String, dynamic> map) {
@@ -30,6 +31,7 @@ class StopTime {
       arrivalTime: parseTime(map['arrivalTime']),
       departureTime: parseTime(map['departureTime']),
       stopNumber: map['stopNumber'] as int,
+      stopDays: map['stopDays'] as int?,
     );
   }
 
@@ -43,4 +45,8 @@ class StopTime {
   /// Minutes since midnight.
   final int departureTime;
   final int stopNumber;
+
+  /// Weekday bitmask (bit0 = Mon … bit6 = Sun) when the train calls here only
+  /// on some of its running days (posters mark these with `*`); null = always.
+  final int? stopDays;
 }

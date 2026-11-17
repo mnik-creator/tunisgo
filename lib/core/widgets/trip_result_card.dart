@@ -1,42 +1,79 @@
 // Copyright (c) 2025 mnik-creator
 // Licensed under MIT — see LICENSE file
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../config/live_config.dart';
+import '../../features/live/live_board.dart';
+import '../../features/live/live_board_sheet.dart';
+import '../../features/live/live_models.dart';
+import '../../features/live/live_providers.dart';
 import '../helpers/time_helpers.dart';
 import '../models/trip.dart';
 import '../theme/line_colors.dart';
 import '../../l10n/app_localizations.dart';
 import 'train_type_badge.dart';
 
-class TripResultCard extends StatelessWidget {
+class TripResultCard extends ConsumerWidget {
   const TripResultCard({required this.trip, required this.onTap, super.key});
 
   final Trip trip;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final loc = AppLocalizations.of(context);
+    final liveIndex = LiveConfig.isEnabled
+        ? ref.watch(liveTrainIndexProvider)
+        : const <String, List<LiveTrain>>{};
+    final live = trip.fromStationName == null || trip.tripCode.isEmpty
+        ? null
+        : matchTimetableRow(
+            liveIndex,
+            tripCode: trip.tripCode,
+            dbStationName: trip.fromStationName!,
+            plannedHhmm: minutesToHHMM(trip.departureTime),
+          );
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final durationMin = trip.arrivalTime - trip.departureTime;
+    // Wraps past midnight (23:45 -> 00:23 is 38 min, not -23h).
+    final durationMin = (trip.arrivalTime - trip.departureTime) % (24 * 60);
     final hours = durationMin ~/ 60;
     final mins = durationMin % 60;
     final durationStr = hours > 0
         ? '${hours}h${mins.toString().padLeft(2, '0')}'
         : '${mins}min';
     final lineColor = LineColors.forCategory(
-      LineColors.fromLineId(trip.lineId),
+      isEstimatedTrip(trip.tripCode)
+          ? LineCategory.transtu
+          : LineColors.fromLineId(trip.lineId),
     );
 
     final isLate = trip.mayArriveLate;
-    final cardColor = isLate
-        ? (isDark
-            ? const Color(0xFF2D2007)
-            : const Color(0xFFFFF8EC))
+    final isCancelled = live?.isCancelled ?? false;
+    // Cancelled wins over late: the rider must not wait for this train.
+    final accent = isCancelled
+        ? const Color(0xFFDC2626)
+        : isLate
+        ? const Color(0xFFD97706)
+        : null;
+    final cardColor = isCancelled
+        ? (isDark ? const Color(0xFF2D0A0A) : const Color(0xFFFEF2F2))
+        : isLate
+        ? (isDark ? const Color(0xFF2D2007) : const Color(0xFFFFF8EC))
         : (isDark ? const Color(0xFF1F2937) : Colors.white);
-    final borderColor = isLate
+    final borderColor = isCancelled
+        ? const Color(0xFFDC2626).withValues(alpha: 0.5)
+        : isLate
         ? const Color(0xFFF59E0B).withValues(alpha: 0.5)
         : Colors.transparent;
+    final timeStyle = TextStyle(
+      fontSize: 24,
+      fontWeight: FontWeight.bold,
+      fontFamily: 'monospace',
+      color: accent,
+      decoration: isCancelled ? TextDecoration.lineThrough : null,
+      decorationColor: accent,
+    );
 
     return GestureDetector(
       onTap: onTap,
@@ -58,22 +95,51 @@ class TripResultCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (isLate) ...[
+            if (isLate || isCancelled) ...[
               Row(
                 children: [
-                  const Icon(
-                    Icons.schedule,
+                  Icon(
+                    isCancelled ? Icons.cancel_outlined : Icons.schedule,
                     size: 13,
-                    color: Color(0xFFD97706),
+                    color: accent,
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    loc.may_arrive_late,
-                    style: const TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFD97706),
-                      letterSpacing: 0.3,
+                  Expanded(
+                    child: Text(
+                      isCancelled
+                          ? loc.live_cancelled_header
+                          : live != null && live.eta != null
+                          ? loc.live_running_late(live.delayMinutes, live.eta!)
+                          : loc.may_arrive_late,
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: accent,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ] else if (isEstimatedTrip(trip.tripCode)) ...[
+              Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 13,
+                    color: Colors.grey.shade500,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      loc.schedule_estimated,
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade500,
+                        letterSpacing: 0.3,
+                      ),
                     ),
                   ),
                 ],
@@ -82,15 +148,7 @@ class TripResultCard extends StatelessWidget {
             ],
             Row(
               children: [
-                Text(
-                  minutesToHHMM(trip.departureTime),
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'monospace',
-                    color: isLate ? const Color(0xFFD97706) : null,
-                  ),
-                ),
+                Text(minutesToHHMM(trip.departureTime), style: timeStyle),
                 Padding(
                   padding: const EdgeInsetsDirectional.symmetric(
                     horizontal: 12,
@@ -98,20 +156,11 @@ class TripResultCard extends StatelessWidget {
                   child: Icon(
                     Icons.arrow_forward,
                     size: 16,
-                    color: isLate
-                        ? const Color(0xFFD97706).withValues(alpha: 0.7)
-                        : Colors.grey.shade400,
+                    color:
+                        accent?.withValues(alpha: 0.7) ?? Colors.grey.shade400,
                   ),
                 ),
-                Text(
-                  minutesToHHMM(trip.arrivalTime),
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'monospace',
-                    color: isLate ? const Color(0xFFD97706) : null,
-                  ),
-                ),
+                Text(minutesToHHMM(trip.arrivalTime), style: timeStyle),
                 const Spacer(),
                 TrainTypeBadge(type: trip.trainType),
               ],
@@ -141,13 +190,20 @@ class TripResultCard extends StatelessWidget {
                           fontFamily: 'monospace',
                         ),
                       ),
+                      if (live != null) LiveStatusBadge(call: live, loc: loc),
                       Text(
                         durationStr,
-                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
                       Text(
                         '· ${servicesDaysLabel(trip.serviceDays, loc)}',
-                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
                     ],
                   ),

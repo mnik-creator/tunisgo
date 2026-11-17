@@ -18,11 +18,18 @@ class StationRepository {
     1 AS isActive
   ''';
 
+  /// Stops at least one train calls at. Leftovers without trains (SNCFT
+  /// "La Goulette" 300G, whose name the TGM station now uses) stay out of the
+  /// picker; [getStationsByIds] still resolves them for saved favourites.
+  static const _served =
+      'WHERE id IN (SELECT DISTINCT stop_id FROM stop_times)';
+
   /// Returns all station IDs that should be considered equivalent to [stationId].
   Future<List<String>> getEquivalentStationIds(String stationId) async {
     return [stationId];
   }
 
+  /// Every stop, for lookups by id or code (trip details, live board).
   Future<List<Station>> getAllStations() async {
     final rows = await _db.rawQuery(
       'SELECT $_selectCols FROM stops ORDER BY name',
@@ -30,9 +37,17 @@ class StationRepository {
     return rows.map(Station.fromMap).toList();
   }
 
+  /// Stops offered in the station picker: only those a train calls at.
+  Future<List<Station>> getServedStations() async {
+    final rows = await _db.rawQuery(
+      'SELECT $_selectCols FROM stops $_served ORDER BY name',
+    );
+    return rows.map(Station.fromMap).toList();
+  }
+
   Future<List<Station>> getMajorStations() async {
     final rows = await _db.rawQuery(
-      'SELECT $_selectCols FROM stops ORDER BY name LIMIT 30',
+      'SELECT $_selectCols FROM stops $_served ORDER BY name LIMIT 30',
     );
     return rows.map(Station.fromMap).toList();
   }
@@ -42,7 +57,7 @@ class StationRepository {
     // case-insensitive matching must be done in Dart.
     final queryLower = query.toLowerCase();
     final rows = await _db.rawQuery(
-      'SELECT $_selectCols FROM stops ORDER BY name',
+      'SELECT $_selectCols FROM stops $_served ORDER BY name',
     );
     return rows
         .map(Station.fromMap)

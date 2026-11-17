@@ -14,12 +14,15 @@ class Line {
 
   factory Line.fromMap(Map<String, dynamic> map) {
     final nameFr = map['nameFr'] as String;
+    // TRANSTU route names start with the line label ("M4 …", "TGM …"); keep it
+    // in front of the Arabic/Russian names built from the end stations.
+    final label = RegExp(r'^(M\d|TGM) ').firstMatch(nameFr)?.group(0) ?? '';
 
     // If the map contains endpoint station names (from getAllLines subqueries),
     // build localized line names as "StartStation — EndStation".
     String buildLocalized(String? start, String? end) {
       if (start != null && start.isNotEmpty && end != null && end.isNotEmpty) {
-        return '$start — $end';
+        return '$label$start — $end';
       }
       return '';
     }

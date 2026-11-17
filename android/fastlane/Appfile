@@ -1,0 +1,3 @@
+# Google Play service account key — never commit it. See docs/PLAY_PUBLISHING.md.
+json_key_file(ENV["PLAY_JSON_KEY"] || File.expand_path("~/.config/tunisgo/play-service-account.json"))
+package_name("com.tunisgo")

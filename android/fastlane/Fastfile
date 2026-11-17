@@ -1,0 +1,95 @@
+# TunisGO — Google Play publishing. Setup and usage: docs/PLAY_PUBLISHING.md
+#
+#   cd android
+#   fastlane check                       # key works, shows version codes per track
+#   fastlane internal                    # build .aab, upload to Internal testing as a draft
+#   fastlane internal status:completed   # … and roll it out to testers at once
+#   fastlane promote to:production               # internal → production, as a draft
+#   fastlane promote to:production rollout:0.2   # … live for 20 % of users
+#   fastlane metadata_pull               # download store listing into fastlane/metadata
+
+require "shellwords"
+
+opt_out_usage
+default_platform(:android)
+
+WORKER_URL = ENV["WORKER_URL"] || "https://tunisgo-live.tunisgo.workers.dev"
+ROOT = File.expand_path("../..", __dir__)
+AAB = File.join(ROOT, "build/app/outputs/bundle/release/app-release.aab")
+TRACKS = %w[internal alpha beta production].freeze
+
+platform :android do
+  desc "Checks the service account key and prints the version codes on each track"
+  lane :check do
+    validate_play_store_json_key
+    TRACKS.each do |track|
+      codes = google_play_track_version_codes(track: track) rescue []
+      UI.message("#{track.ljust(10)} #{codes.empty? ? '—' : codes.join(', ')}")
+    end
+  end
+
+  desc "Builds a release .aab and uploads it to Internal testing (draft unless status:completed)"
+  lane :internal do |options|
+    ensure_release_files!
+    ensure_new_version_code!
+    sh("cd #{ROOT.shellescape} && flutter build appbundle --release --dart-define=WORKER_URL=#{WORKER_URL}")
+    upload_to_play_store(
+      track: "internal",
+      aab: AAB,
+      release_status: options[:status] || "draft",
+      skip_upload_metadata: true,
+      # Release notes: fastlane/metadata/android/<lang>/changelogs/<versionCode>.txt
+      skip_upload_changelogs: !Dir.exist?(File.join(__dir__, "metadata/android")),
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+    )
+  end
+
+  desc "Promotes the latest internal release to another track (draft unless status:completed)"
+  lane :promote do |options|
+    to = options[:to] || "production"
+    UI.user_error!("Unknown track #{to}") unless TRACKS.include?(to)
+    code = google_play_track_version_codes(track: "internal").max
+    UI.user_error!("Nothing on Internal testing") unless code
+    rollout = options[:rollout]
+    # A staged rollout has to be live; anything else stays a draft unless asked.
+    status = rollout ? "inProgress" : (options[:status] || "draft")
+    params = {
+      track: "internal",
+      track_promote_to: to,
+      version_code: code,
+      # supply ignores release_status when promoting and uses this one
+      # (default "completed", i.e. straight to review for 100 % of users).
+      track_promote_release_status: status,
+      release_status: status,
+      skip_upload_aab: true,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+    }
+    params[:rollout] = rollout.to_s if rollout
+    upload_to_play_store(**params)
+  end
+
+  desc "Downloads the store listing (texts, images) into fastlane/metadata"
+  lane :metadata_pull do
+    download_from_play_store
+  end
+
+  private_lane :ensure_new_version_code! do
+    pubspec = File.read(File.join(ROOT, "pubspec.yaml"))
+    code = pubspec[/^version:\s*[\d.]+\+(\d+)/, 1].to_i
+    used = TRACKS.flat_map { |t| google_play_track_version_codes(track: t) rescue [] }.max || 0
+    if code <= used
+      UI.user_error!("pubspec.yaml build number #{code} is not above #{used} already on Play — bump `version: x.y.z+N`")
+    end
+    UI.success("Version code #{code} (highest on Play: #{used})")
+  end
+
+  def ensure_release_files!
+    missing = ["android/key.properties"]
+      .reject { |f| File.exist?(File.join(ROOT, f)) }
+    UI.user_error!("Missing #{missing.join(', ')} — see docs/PLAY_PUBLISHING.md") unless missing.empty?
+  end
+end

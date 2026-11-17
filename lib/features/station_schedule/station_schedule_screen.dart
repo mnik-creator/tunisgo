@@ -19,8 +19,10 @@ import '../live/live_models.dart';
 import '../live/live_providers.dart';
 import '../../widgets/ads/native_ad_widget.dart';
 
-final _stationByCodeProvider =
-    FutureProvider.family<Station?, String>((ref, code) async {
+final _stationByCodeProvider = FutureProvider.family<Station?, String>((
+  ref,
+  code,
+) async {
   final all = await ref.read(stationRepositoryProvider).getAllStations();
   for (final s in all) {
     if (s.slug == code) return s;
@@ -30,8 +32,10 @@ final _stationByCodeProvider =
 
 final _departuresProvider =
     FutureProvider.family<List<Map<String, dynamic>>, String>((ref, stationId) {
-  return ref.read(tripRepositoryProvider).getDeparturesForStation(stationId);
-});
+      return ref
+          .read(tripRepositoryProvider)
+          .getDeparturesForStation(stationId);
+    });
 
 enum _Direction { toTunis, toErriadh }
 
@@ -45,8 +49,7 @@ class StationScheduleScreen extends ConsumerStatefulWidget {
       _StationScheduleScreenState();
 }
 
-class _StationScheduleScreenState
-    extends ConsumerState<StationScheduleScreen> {
+class _StationScheduleScreenState extends ConsumerState<StationScheduleScreen> {
   _Direction _direction = _Direction.toTunis;
 
   @override
@@ -76,7 +79,7 @@ class _StationScheduleScreenState
                 Expanded(
                   child: stationAsync.when(
                     data: (s) => Text(
-                      s?.nameFr ?? widget.stationCode,
+                      s?.localizedName(loc.localeName) ?? widget.stationCode,
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -86,7 +89,9 @@ class _StationScheduleScreenState
                     error: (_, _) => Text(widget.stationCode),
                   ),
                 ),
-                if (LiveConfig.isEnabled && stationAsync.valueOrNull != null)
+                if (LiveConfig.isEnabled &&
+                    stationAsync.valueOrNull != null &&
+                    !stationAsync.valueOrNull!.isTranstu)
                   IconButton(
                     tooltip: loc.live_title,
                     icon: const Icon(Icons.sensors, color: kEmerald500),
@@ -259,7 +264,10 @@ class _DepartureList extends ConsumerWidget {
         }).toList();
 
         if (filtered.isEmpty) {
-          return EmptyState(icon: Icons.train_outlined, message: loc.no_results);
+          return EmptyState(
+            icon: Icons.train_outlined,
+            message: loc.no_results,
+          );
         }
         const adSlot = 4;
         final hasNativeSlot = filtered.length > adSlot;
@@ -278,12 +286,15 @@ class _DepartureList extends ConsumerWidget {
             final tripId = row['trip_id'] as String;
             final rawTripCode = row['train_number'] as String;
             final trainNumber = extractTrainNumber(rawTripCode);
-            final departureMinutes =
-                hhmmToMinutes(row['departure_time'] as String);
-            final serviceDays = tripServiceDaysBitmask(
-              row['service_id'] as String?,
-              rawTripCode,
+            final departureMinutes = hhmmToMinutes(
+              row['departure_time'] as String,
             );
+            final serviceDays =
+                tripServiceDaysBitmask(
+                  row['service_id'] as String?,
+                  rawTripCode,
+                ) &
+                ((row['stop_days'] as int?) ?? 0x7F);
             final live = liveIndex.isEmpty
                 ? null
                 : matchTimetableRow(
@@ -324,10 +335,15 @@ class _DepartureList extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (live != null) LiveStatusBadge(call: live, loc: loc),
-                    Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
+                    Icon(
+                      Icons.chevron_right,
+                      color: Colors.grey.shade400,
+                      size: 20,
+                    ),
                   ],
                 ),
-                onTap: () => context.goNamed('trip', pathParameters: {'id': tripId}),
+                onTap: () =>
+                    context.goNamed('trip', pathParameters: {'id': tripId}),
               ),
             );
           },
